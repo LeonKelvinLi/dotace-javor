@@ -148,7 +148,21 @@ export async function extractDocument(file: File, mode: ExtractionMode, progress
       } finally { await task.destroy(); }
     }
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) throw new Error('Podporujeme PDF, JPG, PNG a WebP.');
-    const result = await ocr(file);
+    // Browser-supported WebP is not consistently decoded by the OCR engine.
+    // Rasterize it through the browser, as we do for scanned PDF pages.
+    let result: { text: string; confidence: number };
+    if (file.type === 'image/webp') {
+      const bitmap = await createImageBitmap(file);
+      const canvas = document.createElement('canvas');
+      try {
+        const scale = Math.min(1, 4000 / Math.max(bitmap.width, bitmap.height));
+        canvas.width = Math.max(1, Math.round(bitmap.width * scale)); canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+        const context = canvas.getContext('2d'); if (!context) throw new Error('Prohlížeč nepodporuje čtení obrázku.');
+        context.fillStyle = '#ffffff'; context.fillRect(0,0,canvas.width,canvas.height);
+        context.drawImage(bitmap,0,0,canvas.width,canvas.height);
+        result = await ocr(canvas);
+      } finally { bitmap.close(); canvas.width = 0; canvas.height = 0; }
+    } else result = await ocr(file);
     if (!result.text.trim()) throw new Error('Na obrázku se nepodařilo rozpoznat text. Zkuste ostřejší fotografii nebo ruční zápis.');
     return { ...result, ...documentProposal(result.text, mode), method: 'OCR', pages: 1 };
   } finally { await worker?.terminate(); }
