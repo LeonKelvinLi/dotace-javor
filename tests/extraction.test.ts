@@ -107,3 +107,9 @@ test('conflicting totals require review and localized money formats retain preci
   assert.equal(parseCzechAmount('EUR 1,234.56'),1234.56); assert.equal(parseCzechAmount('1.234,56 EUR'),1234.56);
   assert.equal(parseCzechAmount('1,234,567.89 USD'),1234567.89); assert.equal(parseCzechAmount('1,23,4.56'),undefined);
 });
+
+test('an unlabelled currency is not assumed to be CZK', () => {
+  const p = documentProposal('Invoice number: EN-2026-099\nTotal due: 1,210.00');
+  assert.equal(p.sourceAmount,1210); assert.equal(p.currency,undefined); assert.equal(p.fields.amount,undefined);
+  assert.ok(p.warnings.some(w=>w.includes('Měna')));
+});

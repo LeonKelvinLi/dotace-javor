@@ -51,7 +51,7 @@ export function documentTotal(text: string): { sourceAmount?: number; currency?:
       if (/[a-z]/i.test(raw.replace(currencyPattern, '').replace(/Kč/gi,''))) return {};
       const sourceAmount = parseCzechAmount(raw);
       const all = currencies(raw), documentCurrencies = currencies(text);
-      return { sourceAmount, currency: all.length === 1 ? all[0] : documentCurrencies.length === 1 ? documentCurrencies[0] : documentCurrencies.length === 0 ? 'CZK' : undefined };
+      return { sourceAmount, currency: all.length === 1 ? all[0] : documentCurrencies.length === 1 ? documentCurrencies[0] : undefined };
     }).filter(v => v.sourceAmount !== undefined);
     if (values.length) return values.every(v => v.sourceAmount === values[0].sourceAmount && v.currency === values[0].currency) ? values[0] : {};
   }
