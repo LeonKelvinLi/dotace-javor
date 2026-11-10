@@ -68,3 +68,16 @@ test('contract extraction does not turn a grant into an already claimed expense'
   assert.equal(fields.claimed, undefined);
   assert.equal(fields.date, undefined);
 });
+
+test('ordinary prose mentioning an invoice does not invent an invoice number', () => {
+  assert.deepEqual(parseDocumentText('Vážení členové, zveme vás na setkání.\nTento dopis není faktura ani potvrzení o úhradě.'), {});
+});
+
+test('foreign-currency totals never become CZK claims without a verified conversion', () => {
+  for (const currency of ['EUR', '€', 'USD', '$', 'GBP', '£', 'CHF', 'PLN']) {
+    const fields = parseDocumentText(`Číslo faktury: QA-2026-042\nCelkem k úhradě: 1 210,00 ${currency}`);
+    assert.equal(fields.number, 'QA-2026-042');
+    assert.equal(fields.amount, undefined, currency);
+    assert.equal(fields.claimed, undefined, currency);
+  }
+});

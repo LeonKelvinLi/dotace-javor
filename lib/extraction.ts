@@ -1,5 +1,8 @@
 export type ExtractionMode = 'receipt' | 'organization' | 'contract';
 export type ExtractionResult = { text: string; fields: Record<string, unknown>; method: string; pages: number; confidence?: number };
+export function hasForeignCurrency(text: string): boolean {
+  return /[€$£¥]|\b(?:EUR|USD|GBP|CHF|PLN|HUF|JPY|CNY|CAD|AUD|BRL)\b/i.test(text);
+}
 
 function matchLine(text: string, pattern: RegExp) { return text.match(pattern)?.[1]?.trim().replace(/\s+/g, ' '); }
 export function parseCzechAmount(value: string): number | undefined {
@@ -28,9 +31,11 @@ export function parseDocumentText(text: string, mode: ExtractionMode = 'receipt'
     return f;
   }
   const number = matchLine(text, /(?:číslo (?:dokladu|faktury|smlouvy)|faktura(?:\s+(?:č\.?|číslo))?|doklad(?:\s+č\.?)?|smlouva\s+č\.?)\s*[:#]?\s*([A-Z0-9][A-Z0-9/._-]{2,40})/i);
-  if (number) f.number = number;
+  if (number && /\d/.test(number)) f.number = number;
   const amount = text.match(/(?:celkem k úhradě|částka k úhradě|k úhradě|celkem včetně DPH|celková částka|výše dotace|částka dotace)\s*:?\s*(\d[\d .\u00a0\u202f]*(?:,\d{1,2})?)\s*(?:Kč|CZK)?/i)?.[1] ?? text.match(/(?:^|\n)\s*celkem\s*:?\s*(\d[\d .\u00a0\u202f]*(?:,\d{1,2})?)\s*(?:Kč|CZK)?/i)?.[1];
-  if (amount) { const v = parseCzechAmount(amount); if (v !== undefined) { f.amount = v; if (mode === 'receipt') f.claimed = v; } }
+  // The settlement stores CZK only. A foreign-currency document needs an
+  // explicitly verified conversion rather than a numerical value relabelled CZK.
+  if (amount && !hasForeignCurrency(text)) { const v = parseCzechAmount(amount); if (v !== undefined) { f.amount = v; if (mode === 'receipt') f.claimed = v; } }
   if (mode === 'contract') return f;
   const supplier = matchLine(text, /(?:dodavatel|vystavil|supplier)\s*:?\s*([^\n\r]+)/i);
   if (supplier) f.supplier = supplier;
