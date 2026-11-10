@@ -1575,7 +1575,7 @@ export default function DotaceApp() {
       {toast && (
         <div className="toast no-print" role="status">
           <CircleCheck size={18} />
-          {toast}
+          <span key={toast}>{toast}</span>
           <button
             className="icon-button"
             aria-label="Zavřít oznámení"
@@ -2046,12 +2046,8 @@ function OrganizationForm({
               disabled={lookingUp || busy || !/^[0-9]{8}$/.test(o.ico)}
               onClick={() => void registry()}
             >
-              {lookingUp ? (
-                <Loader2 className="spin" size={13} />
-              ) : (
-                <Search size={13} />
-              )}
-              ARES
+              <span aria-hidden="true">{lookingUp ? <Loader2 className="spin" size={13} /> : <Search size={13} />}</span>
+              <span>ARES</span>
             </button>
           </div>
         </Field>
@@ -2115,8 +2111,8 @@ function OrganizationForm({
       </div>
       <div className="form-footer">
         <button className="button primary" type="submit" disabled={busy}>
-          {busy ? <Loader2 size={16} className="spin" /> : <Check size={16} />}
-          Uložit organizaci
+          <span aria-hidden="true">{busy ? <Loader2 size={16} className="spin" /> : <Check size={16} />}</span>
+          <span>Uložit organizaci</span>
         </button>
       </div>
     </form>
@@ -2309,8 +2305,8 @@ function ItemForm({
   const [selectedFile, setSelectedFile] = useState(item.fileIds[0] || "");
   const [extractFile, setExtractFile] = useState<File | null>(null);
   const [readingSource, setReadingSource] = useState(false);
-  const sourceId = useRef(selectedFile);
-  sourceId.current = selectedFile;
+  const sourceFiles = useRef(new Map<string, File>());
+  const [sourceAttempt, setSourceAttempt] = useState(0);
   const [decision, setDecision] = useState<Item["sfjDecision"]>(
     item.sfjDecision === "pending" ? "accepted" : item.sfjDecision,
   );
@@ -2335,6 +2331,7 @@ function ItemForm({
       for (const f of selectedFiles) {
         const uploaded = await upload(f);
         added.push(uploaded);
+        sourceFiles.current.set(uploaded.id, f);
       }
       setNewFiles((old) => [...old, ...added]);
       setDraft((old) => ({
@@ -2349,31 +2346,28 @@ function ItemForm({
       setUploading(false);
     }
   };
-  const readStoredFile = async () => {
-    if (!file) return;
-    const source = file;
-    setReadingSource(true);
-    setError("");
-    try {
-      const response = await fetch(
-        `/api/files?id=${encodeURIComponent(source.id)}`,
-        { credentials: "same-origin" },
-      );
-      if (!response.ok)
-        throw new Error(
-          "Přílohu se nepodařilo načíst. Zkuste ji otevřít znovu.",
-        );
-      const blob = await response.blob();
-      if (sourceId.current === source.id)
-        setExtractFile(new File([blob], source.name, { type: source.type }));
-    } catch (e) {
-      setError(
-        e instanceof Error ? e.message : "Přílohu se nepodařilo načíst.",
-      );
-    } finally {
-      setReadingSource(false);
-    }
-  };
+  useEffect(() => {
+    if (!file || !editable) { setExtractFile(null); return; }
+    const cached = sourceFiles.current.get(file.id);
+    if (cached) { setExtractFile(cached); setReadingSource(false); return; }
+    const source = file, controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 30_000);
+    let disposed = false;
+    setExtractFile(null); setReadingSource(true);
+    void (async () => {
+      try {
+        const response = await fetch(`/api/files?id=${encodeURIComponent(source.id)}`, { credentials: 'same-origin', signal: controller.signal });
+        if (!response.ok) throw new Error(response.status === 401 ? 'Přihlášení vypršelo. Přihlaste se znovu v nové záložce a opakujte čtení.' : 'Přílohu se nepodařilo načíst. Zkuste čtení znovu.');
+        const blob = await response.blob();
+        if (!disposed) {
+          const loaded = new File([blob], source.name, { type: source.type });
+          sourceFiles.current.set(source.id, loaded); setExtractFile(loaded);
+        }
+      } catch (e) { if (!disposed) setError(controller.signal.aborted ? 'Načtení přílohy trvá příliš dlouho. Zkuste čtení znovu.' : e instanceof Error ? e.message : 'Přílohu se nepodařilo načíst.'); }
+      finally { clearTimeout(timer); if (!disposed) setReadingSource(false); }
+    })();
+    return () => { disposed = true; clearTimeout(timer); controller.abort(); };
+  }, [selectedFile, editable, file?.id, file?.name, file?.type, sourceAttempt]);
   const applyExtraction = (fields: Record<string, unknown>) => {
     const allowed = [
       "number",
@@ -2443,8 +2437,8 @@ function ItemForm({
             )}
             <div className="file-meta">
               <FileText size={14} />
-              <span>{file.name}</span>
-              <span>{Math.ceil(file.size / 1024)} kB</span>
+              <span translate="no" key={file.id}>{file.name}</span>
+              <span translate="no">{`${Math.ceil(file.size / 1024)} kB`}</span>
             </div>
           </div>
         ) : (
@@ -2463,7 +2457,7 @@ function ItemForm({
             state.membership.role !== "federation")) && (
           <label className={`upload-zone ${uploading ? "disabled" : ""}`}>
             <Upload size={22} />
-            <strong>
+            <strong key={String(uploading)}>
               {uploading ? "Ukládání souboru…" : "Nahrát PDF nebo fotografii"}
             </strong>
             <span>Vyberte soubor · lze přiložit více příloh</span>
@@ -2484,14 +2478,10 @@ function ItemForm({
             type="button"
             className="button secondary read-stored-file"
             disabled={readingSource || uploading || busy}
-            onClick={() => void readStoredFile()}
+            onClick={() => { setError(""); setSourceAttempt(n => n + 1); }}
           >
-            {readingSource ? (
-              <Loader2 size={15} className="spin" />
-            ) : (
-              <FileText size={15} />
-            )}{" "}
-            {readingSource ? "Načítání přílohy…" : "Přečíst stávající přílohu"}
+            <span aria-hidden="true">{readingSource ? <Loader2 size={15} className="spin" /> : <FileText size={15} />}</span>
+            <span>{readingSource ? "Načítání pro OCR…" : "Znovu načíst pro OCR"}</span>
           </button>
         )}
         {extractFile && editable && (
@@ -2979,7 +2969,7 @@ function Conditions({
             </label>
             <label className="button secondary upload-button">
               <Upload size={16} />
-              {uploading ? "Ukládání…" : "Přiložit PDF nebo fotografii"}
+              <span key={String(uploading)}>{uploading ? "Ukládání…" : "Přiložit PDF nebo fotografii"}</span>
               <input
                 type="file"
                 accept="application/pdf,image/jpeg,image/png,image/webp"
@@ -3079,12 +3069,8 @@ function Summary({
             disabled={downloading}
             onClick={() => void downloadPdf()}
           >
-            {downloading ? (
-              <Loader2 size={16} className="spin" />
-            ) : (
-              <Download size={16} />
-            )}
-            {downloading ? "Připravuji PDF…" : "Stáhnout PDF"}
+            <span aria-hidden="true">{downloading ? <Loader2 size={16} className="spin" /> : <Download size={16} />}</span>
+            <span key={String(downloading)}>{downloading ? "Připravuji PDF…" : "Stáhnout PDF"}</span>
           </button>
         </div>
       </div>

@@ -176,7 +176,7 @@ export default function DotaceDocument({ file }: { file: StoredFile }) {
         {(loading || rendering) && !error && (
           <div className="pdf-loading" role="status">
             <Loader2 size={17} className="spin" />
-            {loading ? "Načítání dokladu…" : "Zobrazování strany…"}
+            <span key={String(loading)}>{loading ? "Načítání dokladu…" : "Zobrazování strany…"}</span>
           </div>
         )}
         {error && (

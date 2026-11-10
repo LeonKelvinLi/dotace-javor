@@ -1,3 +1,4 @@
+import { abortable, abortError, checkAbort, rasterSize, withOcrSlot } from './ocr-lifecycle.ts';
 export type ExtractionMode = 'receipt' | 'organization' | 'contract';
 export type ExtractionResult = { text: string; fields: Record<string, unknown>; method: string; pages: number; confidence?: number; currency?: string; sourceAmount?: number; warnings?: string[] };
 const currencyPattern = /\b(?:CZK|EUR|USD|GBP|CHF|PLN|HUF|JPY|CNY|CAD|AUD|BRL)\b|Kč|[€$£¥]/gi;
@@ -103,67 +104,100 @@ export function convertToCzk(sourceAmount: number, rate: number, source: string)
   if (![sourceAmount, rate, amount].every(n => Number.isFinite(n) && n > 0) || amount >= 1_000_000_000 || !source.trim()) throw new Error('Doplňte kladný kurz a jeho zdroj / datum.');
   return { amount, note: `Přepočet ${sourceAmount} × ${rate} Kč = ${amount} Kč. Zdroj / datum kurzu: ${source.trim()}.` };
 }
-export async function extractDocument(file: File, mode: ExtractionMode, progress: (message: string) => void): Promise<ExtractionResult> {
+export async function extractDocument(file: File, mode: ExtractionMode, progress: (message: string) => void, signal?: AbortSignal): Promise<ExtractionResult> {
+  if (!file.size) throw new Error('Soubor je prázdný. Vyberte jiný dokument.');
   if (file.size > 10 * 1024 * 1024) throw new Error('Soubor může mít nejvýše 10 MB.');
+  const pdfFile = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+  if (!pdfFile && !['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) throw new Error('Podporujeme PDF, JPG, PNG a WebP.');
+  const controller = new AbortController();
+  const cancel = () => controller.abort(signal?.reason ?? abortError());
+  signal?.addEventListener('abort', cancel, { once: true });
+  if (signal?.aborted) cancel();
+  const timer = setTimeout(() => controller.abort(new Error('Čtení překročilo časový limit 3 minut. Zkuste menší dokument nebo čtení opakujte.')), 180_000);
+  const active = controller.signal;
   let worker: import('tesseract.js').Worker | undefined;
-  const ocr = async (input: File | HTMLCanvasElement) => {
+  let pdfTask: import('pdfjs-dist').PDFDocumentLoadingTask | undefined;
+  const dispose = () => {
+    const current = worker; worker = undefined;
+    if (current) void current.terminate().catch(() => {});
+    const loading = pdfTask; pdfTask = undefined;
+    if (loading) void loading.destroy().catch(() => {});
+  };
+  active.addEventListener('abort', dispose, { once: true });
+  const step = <T,>(promise: Promise<T>) => abortable(promise, active);
+  let pageLabel = '';
+  const report = (message: string) => { if (!active.aborted) progress(message); };
+  const ocr = async (canvas: HTMLCanvasElement) => {
+    checkAbort(active);
     if (!worker) {
-      const { createWorker } = await import('tesseract.js');
-      worker = await createWorker(['ces', 'eng'], 1, {
+      report('Připravuji OCR…');
+      const { createWorker } = await step(import('tesseract.js'));
+      const creating = createWorker(['ces', 'eng'], 1, {
         workerPath: '/ocr/worker.min.js', corePath: '/ocr', langPath: '/ocr', workerBlobURL: false,
-        logger: m => progress(`Čtení textu ${Math.round((m.progress ?? 0) * 100)} %`),
+        // Tesseract otherwise throws an uncaught exception from its worker handler.
+        errorHandler: () => controller.abort(new Error('OCR se nepodařilo spustit. Zkontrolujte připojení a zkuste čtení znovu.')),
+        logger: m => report(m.status === 'recognizing text' ? `${pageLabel}Čtení textu ${Math.round((m.progress ?? 0) * 100)} %` : `${pageLabel}Připravuji OCR…`),
+      }).then(created => {
+        if (active.aborted) { void created.terminate().catch(() => {}); checkAbort(active); }
+        worker = created; return created;
       });
+      await step(creating);
     }
-    const result = await worker.recognize(input);
+    const result = await step(worker!.recognize(canvas));
     return { text: result.data.text, confidence: result.data.confidence };
   };
   try {
-    if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
-      progress('Otevírám PDF…');
-      const pdfjs = await import('pdfjs-dist');
-      pdfjs.GlobalWorkerOptions.workerSrc = '/pdf/pdf.worker.min.mjs';
-      const task = pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()), useSystemFonts: true });
-      const pdf = await task.promise;
-      if (pdf.numPages > 100) { await task.destroy(); throw new Error('Automatické čtení podporuje nejvýše 100 stran. Nahrajte relevantní část nebo údaje zadejte ručně.'); }
-      let text = '', scanned = 0;
-      try {
+    report('Čekám na OCR…');
+    return await withOcrSlot(async () => {
+      if (pdfFile) {
+        report('Otevírám PDF…');
+        const pdfjs = await step(import('pdfjs-dist'));
+        pdfjs.GlobalWorkerOptions.workerSrc = '/pdf/pdf.worker.min.mjs';
+        const bytes = await step(file.arrayBuffer());
+        pdfTask = pdfjs.getDocument({ data: new Uint8Array(bytes), useSystemFonts: true });
+        const pdf = await step(pdfTask.promise);
+        if (pdf.numPages > 10) throw new Error('OCR podporuje nejvýše 10 stran najednou. Nahrajte relevantní část dokumentu.');
+        let text = '', confidence = 0;
         for (let i = 1; i <= pdf.numPages; i++) {
-          progress(`Čtu stranu ${i} z ${pdf.numPages}…`);
-          const page = await pdf.getPage(i);
-          const content = await page.getTextContent();
-          let pageText = content.items.map(item => 'str' in item ? item.str + (item.hasEOL ? '\n' : ' ') : '').join('');
-          if (pageText.trim().length < 30) {
-            if (++scanned > 10) throw new Error('OCR podporuje nejvýše 10 skenovaných stran najednou. Vyberte relevantní část dokumentu.');
-            const viewport = page.getViewport({ scale: 1.8 });
-            const canvas = document.createElement('canvas'); canvas.width = viewport.width; canvas.height = viewport.height;
+          checkAbort(active); pageLabel = `Strana ${i}/${pdf.numPages} · `;
+          report(`${pageLabel}Připravuji obrázek…`);
+          const page = await step(pdf.getPage(i));
+          const canvas = document.createElement('canvas');
+          try {
+            const original = page.getViewport({ scale: 1 });
+            const size = rasterSize(original.width, original.height, 2);
+            const viewport = page.getViewport({ scale: size.scale });
+            canvas.width = size.width; canvas.height = size.height;
             const canvasContext = canvas.getContext('2d');
             if (!canvasContext) throw new Error('Prohlížeč nepodporuje čtení obrázku.');
-            await page.render({ canvasContext, canvas, viewport }).promise;
-            pageText = (await ocr(canvas)).text;
-            canvas.width = 0; canvas.height = 0;
-          }
-          text += pageText + '\n'; page.cleanup();
+            await step(page.render({ canvasContext, canvas, viewport, background: 'white' }).promise);
+            // Always recognize the visible page, even when the PDF has a text layer.
+            const recognized = await ocr(canvas);
+            text += recognized.text + '\n'; confidence += recognized.confidence;
+          } finally { canvas.width = 0; canvas.height = 0; page.cleanup(); }
         }
-        return { text, ...documentProposal(text, mode), method: scanned ? 'PDF + OCR' : 'Text PDF', pages: pdf.numPages };
-      } finally { await task.destroy(); }
-    }
-    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) throw new Error('Podporujeme PDF, JPG, PNG a WebP.');
-    // Browser-supported WebP is not consistently decoded by the OCR engine.
-    // Rasterize it through the browser, as we do for scanned PDF pages.
-    let result: { text: string; confidence: number };
-    if (file.type === 'image/webp') {
-      const bitmap = await createImageBitmap(file);
-      const canvas = document.createElement('canvas');
+        if (!text.trim()) throw new Error('V dokumentu nebyl rozpoznán text. Zkuste ostřejší sken.');
+        return { text, confidence: confidence / pdf.numPages, ...documentProposal(text, mode), method: 'PDF · OCR', pages: pdf.numPages };
+      }
+      report('Připravuji obrázek…');
+      const decoding = createImageBitmap(file).then(bitmap => {
+        if (active.aborted) { bitmap.close(); checkAbort(active); } return bitmap;
+      });
+      const bitmap = await step(decoding), canvas = document.createElement('canvas');
       try {
-        const scale = Math.min(1, 4000 / Math.max(bitmap.width, bitmap.height));
-        canvas.width = Math.max(1, Math.round(bitmap.width * scale)); canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+        const size = rasterSize(bitmap.width, bitmap.height);
+        canvas.width = size.width; canvas.height = size.height;
         const context = canvas.getContext('2d'); if (!context) throw new Error('Prohlížeč nepodporuje čtení obrázku.');
-        context.fillStyle = '#ffffff'; context.fillRect(0,0,canvas.width,canvas.height);
-        context.drawImage(bitmap,0,0,canvas.width,canvas.height);
-        result = await ocr(canvas);
+        context.fillStyle = '#ffffff'; context.fillRect(0, 0, canvas.width, canvas.height);
+        context.drawImage(bitmap, 0, 0, canvas.width, canvas.height); bitmap.close();
+        const result = await ocr(canvas);
+        if (!result.text.trim()) throw new Error('Na obrázku se nepodařilo rozpoznat text. Zkuste ostřejší fotografii.');
+        return { ...result, ...documentProposal(result.text, mode), method: 'OCR', pages: 1 };
       } finally { bitmap.close(); canvas.width = 0; canvas.height = 0; }
-    } else result = await ocr(file);
-    if (!result.text.trim()) throw new Error('Na obrázku se nepodařilo rozpoznat text. Zkuste ostřejší fotografii nebo ruční zápis.');
-    return { ...result, ...documentProposal(result.text, mode), method: 'OCR', pages: 1 };
-  } finally { await worker?.terminate(); }
+    }, active);
+  } catch (error) {
+    if (active.aborted) throw active.reason;
+    if (error instanceof Error && ['InvalidPDFException','PasswordException','UnknownErrorException'].includes(error.name)) throw new Error('PDF je poškozené nebo chráněné heslem. Nahrajte čitelný dokument bez hesla.');
+    throw error instanceof Error ? error : new Error('Dokument se nepodařilo přečíst. Zkuste jiný soubor nebo čtení opakujte.');
+  } finally { clearTimeout(timer); signal?.removeEventListener('abort', cancel); active.removeEventListener('abort', dispose); dispose(); }
 }
