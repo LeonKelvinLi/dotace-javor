@@ -12,6 +12,7 @@ import {
   ArrowRight,
   ArrowUpRight,
   Building2,
+  BookOpen,
   Check,
   CheckCheck,
   ChevronRight,
@@ -182,9 +183,11 @@ export default function DotaceApp() {
   const [program, setProgram] = useState("");
   const [year, setYear] = useState("");
   const [orgFilter, setOrgFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
   const [itemFilter, setItemFilter] = useState("all");
   const [selected, setSelected] = useState<string[]>([]);
   const [inviteToken, setInviteToken] = useState("");
+  useEffect(()=>{ window.scrollTo(0,0); },[Boolean(state),view,contractId,organizationId]);
   const load = useCallback(async () => {
     try {
       const data = await jsonRequest<AppState>("/api/app");
@@ -314,6 +317,7 @@ export default function DotaceApp() {
         (!program || c.program === program) &&
         (!year || c.year === Number(year)) &&
         (!orgFilter || c.organizationId === orgFilter) &&
+        (!statusFilter || (statusFilter === "open" ? ["draft", "changes"].includes(c.status) : c.status === statusFilter)) &&
         (!query ||
           `${c.number} ${c.program} ${state.organizations.find((o) => o.id === c.organizationId)?.name}`
             .toLocaleLowerCase("cs")
@@ -486,21 +490,17 @@ export default function DotaceApp() {
             goHome("contracts");
           }}
         >
-          <span className="brand-icon">
-            <Leaf size={27} />
-          </span>
-          <span>
-            dotace<span className="brand-sub">SPORTOVNÍ FEDERACE JAVOR</span>
-          </span>
+          <span className="brand-icon" translate="no">J</span>
+          <span><strong translate="no">JAVOR</strong><span className="brand-sub">Evidence dotací</span></span>
         </a>
-        <div className="workspace-label">PRACOVNÍ PROSTOR</div>
+        <div className="workspace-label">Evidence</div>
         <nav aria-label="Hlavní navigace">
           <button
             className={`nav-item ${view === "contracts" ? "active" : ""}`}
             onClick={() => goHome("contracts")}
           >
             <LayoutDashboard size={18} />
-            Smlouvy a vyúčtování
+            <span>Smlouvy</span>
             <span className="nav-count">{state.contracts.length}</span>
           </button>
           <button
@@ -508,33 +508,24 @@ export default function DotaceApp() {
             onClick={() => goHome("organizations")}
           >
             <Building2 size={18} />
-            Organizace a lidé
+            <span>Organizace</span>
           </button>
           <button
             className={`nav-item ${view === "activity" ? "active" : ""}`}
             onClick={() => goHome("activity")}
           >
             <History size={18} />
-            Historie činností
+            <span>Historie</span>
           </button>
         </nav>
         <div className="sidebar-bottom">
-          <div className="help-card">
-            <span className="help-icon">
-              <Sparkles size={19} />
-            </span>
-            <h3>Jistota při vyúčtování</h3>
-            <p>Podklady, kontroly a vysvětlení na jednom místě.</p>
-            <button onClick={() => setModal({ type: "adviser" })}>
-              Otevřít rádce <ArrowUpRight size={15} />
-            </button>
-          </div>
+          <button className="sidebar-help" onClick={()=>setModal({type:"adviser"})}><BookOpen size={17}/><span>Pravidla a nápověda</span></button>
           <button
             className="feedback-link"
             onClick={() => setModal({ type: "feedback" })}
           >
             <MessageSquare size={16} />
-            Návrh na zlepšení
+            <span>Zpětná vazba</span>
           </button>
           <div className="profile">
             <span className="avatar">
@@ -683,8 +674,8 @@ export default function DotaceApp() {
                     className="button secondary"
                     onClick={() => setModal({ type: "adviser" })}
                   >
-                    <Sparkles size={16} />
-                    Rádce
+                    <BookOpen size={16} />
+                    <span>Pravidla</span>
                   </button>
                   {federation && !preview && editable && (
                     <button
@@ -796,8 +787,8 @@ export default function DotaceApp() {
                 <section className="panel ledger no-print">
                   <div className="panel-header">
                     <div>
-                      <h2>Doklady k vyúčtování</h2>
-                      <p>Nahrajte doklad, ověřte údaje a potvrďte kontrolu.</p>
+                      <h2>Doklady</h2>
+                      <p>Vyberte doklad k úpravě nebo přidejte nový.</p>
                     </div>
                     <div className="row-actions">
                       <button className="button secondary" onClick={exportCsv}>
@@ -1131,13 +1122,11 @@ export default function DotaceApp() {
             <>
               <div className="page-heading">
                 <div>
-                  <div className="eyebrow">PŘEHLED DOTACÍ</div>
-                  <h1>Smlouvy a vyúčtování</h1>
-                  <p>
-                    Všechny podklady. Přehledná kontrola. Včasné vyúčtování.
-                  </p>
+                  <h1>Smlouvy</h1>
+                  <p>Dotace a jejich vyúčtování.</p>
                 </div>
                 <div className="heading-actions">
+                  {federation && !preview && <button className="button primary" disabled={!state.organizations.length} onClick={()=>setModal({type:"contract",organizationId:state.organizations.length===1?state.organizations[0].id:""})}><Plus size={16}/><span>Nová smlouva</span></button>}
                   <span className="today-label">
                     {new Intl.DateTimeFormat("cs-CZ", {
                       day: "numeric",
@@ -1147,21 +1136,21 @@ export default function DotaceApp() {
                   </span>
                   {federation && !preview && (
                     <button
-                      className="button primary"
+                      className="button secondary"
                       onClick={() => {
                         goHome("organizations");
                         setModal({ type: "organization" });
                       }}
                     >
                       <Plus size={17} />
-                      Přidat organizaci
+                      Nová organizace
                     </button>
                   )}
                 </div>
               </div>
               <div className="overview-metrics">
                 <Metric
-                  label="Objem přidělených dotací"
+                  label="Přiděleno celkem"
                   value={money(
                     state.contracts.reduce(
                       (s, c) => s + Math.round(c.amount * 100),
@@ -1177,34 +1166,26 @@ export default function DotaceApp() {
                     state.contracts.filter((c) => c.status === "submitted")
                       .length,
                   )}
-                  hint="odeslaných vyúčtování"
+                  hint="Zobrazit ke kontrole →"
+                  onClick={()=>setStatusFilter(statusFilter==='submitted'?'':'submitted')}
+                  active={statusFilter==='submitted'}
                   icon={<Clock3 size={19} />}
                 />
                 <Metric
-                  label="Úspěšně uzavřeno"
+                  label="Schválená vyúčtování"
                   value={String(
                     state.contracts.filter((c) => c.status === "approved")
                       .length,
                   )}
-                  hint="schválených vyúčtování"
+                  hint="Zobrazit schválená →"
+                  onClick={()=>setStatusFilter(statusFilter==='approved'?'':'approved')}
+                  active={statusFilter==='approved'}
                   icon={<ShieldCheck size={19} />}
                 />
               </div>
-              <section className="panel">
-                <div className="panel-header">
-                  <div>
-                    <h2>
-                      Přehled smluv{" "}
-                      <span className="count-pill">
-                        {state.contracts.length}
-                      </span>
-                    </h2>
-                    <p>Otevřete smlouvu a pokračujte ve vyúčtování.</p>
-                  </div>
-                  <span className="live-label">
-                    <span />
-                    Průběžně ukládáno
-                  </span>
+              <section className="panel contracts-panel">
+                <div className="contract-status-filters" aria-label="Stav vyúčtování">
+                  {[["","Všechny"],["open","Rozpracované"],["submitted","Ke kontrole"],["approved","Schválené"]].map(([value,label])=><button key={value} type="button" aria-pressed={statusFilter===value} onClick={()=>setStatusFilter(value)}><span>{label}</span><span translate="no">{state.contracts.filter(c=>!value || (value==='open'?['draft','changes'].includes(c.status):c.status===value)).length}</span></button>)}
                 </div>
                 <div className="table-toolbar">
                   <div className="search-field">
@@ -1307,7 +1288,7 @@ export default function DotaceApp() {
                                 {statusNames[c.status]}
                               </span>
                             </td>
-                            <td className="nowrap">{date(c.deadline)}</td>
+                            <td className="nowrap"><span className="mobile-deadline-label">Termín: </span>{date(c.deadline)}</td>
                             <td>
                               <button
                                 className="icon-button"
@@ -1335,19 +1316,10 @@ export default function DotaceApp() {
                   )}
                 </div>
                 <div className="table-footer">
-                  <span>
-                    {filteredContracts.length} z {state.contracts.length} smluv
-                  </span>
-                  <span>Každá smlouva má samostatné vyúčtování.</span>
+                  <span key={`${filteredContracts.length}:${state.contracts.length}`}>{`${filteredContracts.length} z ${state.contracts.length} smluv`}</span>
+                  {(query||year||program||orgFilter||statusFilter) && <button className="text-link" onClick={()=>{setQuery('');setYear('');setProgram('');setOrgFilter('');setStatusFilter('');}}>Zrušit filtry</button>}
                 </div>
               </section>
-              <div className="bottom-note">
-                <ShieldCheck size={17} />
-                <span>
-                  Originály dokladů i průběh kontroly zůstávají uložené u
-                  příslušné smlouvy.
-                </span>
-              </div>
             </>
           ) : view === "organizations" ? (
             organization ? (
@@ -1565,10 +1537,9 @@ export default function DotaceApp() {
             </>
           )}
           <footer className="page-footer no-print">
-            <span>Dotace / SFJ</span>
+            <span translate="no">Javor / Dotace</span>
             <span>
-              Pilotní aplikace s fiktivními údaji · Podmínky vždy ověřte ve své
-              smlouvě
+              Zkušební prostředí · fiktivní data
             </span>
           </footer>
         </main>
@@ -1616,10 +1587,11 @@ export default function DotaceApp() {
                             ? "Pozvat člena organizace"
                             : "Pozvat správce SFJ"
                           : modal.type === "adviser"
-                            ? "Rádce k vyúčtování"
+                            ? "Pravidla a nápověda"
                             : "Návrh na zlepšení"
           }
           wide={modal.type === "item" || modal.type === "adviser"}
+          editor={modal.type === "item"}
           onClose={closeModal}
         >
           {modal.type === "organization" && (
@@ -1636,6 +1608,7 @@ export default function DotaceApp() {
           {modal.type === "contract" && (
             <ContractForm
               organizationId={modal.organizationId}
+              organizations={state.organizations}
               contract={modal.contract}
               busy={busy}
               onSave={(c) =>
@@ -1774,23 +1747,24 @@ function Metric({
   label,
   value,
   hint,
-  icon,
+  icon, onClick, active,
 }: {
   label: string;
   value: string;
   hint?: string;
   icon: React.ReactNode;
+  onClick?: () => void;
+  active?: boolean;
 }) {
-  return (
-    <div className="metric">
+  const contents = <>
       <div className="metric-top">
         <span>{label}</span>
         <span className="metric-icon">{icon}</span>
       </div>
-      <strong>{value}</strong>
+      <strong key={value}>{value}</strong>
       {hint && <small>{hint}</small>}
-    </div>
-  );
+    </>;
+  return onClick ? <button type="button" className={`metric metric-action ${active?'active':''}`} aria-pressed={active} onClick={onClick}>{contents}</button> : <div className="metric">{contents}</div>;
 }
 function Empty({
   icon,
@@ -1816,18 +1790,20 @@ function ModalShell({
   title,
   children,
   onClose,
-  wide,
+  wide, editor,
 }: {
   title: string;
   children: React.ReactNode;
   onClose: () => void;
   wide?: boolean;
+  editor?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const closeRef = useRef(onClose); closeRef.current = onClose;
   useEffect(() => {
     const before = document.activeElement as HTMLElement;
     const key = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") closeRef.current();
       if (e.key === "Tab") {
         const nodes = ref.current?.querySelectorAll<HTMLElement>(
           "button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href]",
@@ -1855,7 +1831,7 @@ function ModalShell({
       document.body.style.overflow = old;
       before?.focus();
     };
-  }, [onClose]);
+  }, []);
   return (
     <div
       className="modal-backdrop no-print"
@@ -1865,7 +1841,7 @@ function ModalShell({
     >
       <div
         ref={ref}
-        className={`modal ${wide ? "wide" : ""}`}
+        className={`modal ${wide ? "wide" : ""} ${editor?"receipt-modal":""}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-title"
@@ -2122,12 +2098,13 @@ function OrganizationForm({
 }
 function ContractForm({
   contract,
-  organizationId,
+  organizationId, organizations,
   busy,
   onSave,
 }: {
   contract?: Contract;
   organizationId: string;
+  organizations: Organization[];
   busy: boolean;
   onSave: (c: Partial<Contract>) => Promise<unknown>;
 }) {
@@ -2165,6 +2142,7 @@ function ContractForm({
       }}
     >
       <FormError error={error} />
+      {!contract && <Field label="Organizace"><select required value={c.organizationId} onChange={e=>change('organizationId',e.target.value)}><option value="">Vyberte organizaci</option>{organizations.map(o=><option key={o.id} value={o.id}>{o.name}</option>)}</select></Field>}
       <div className="form-grid">
         <Field label="Číslo smlouvy">
           <input
@@ -2333,6 +2311,7 @@ function ItemForm({
   const duplicate = duplicateReceipt(state.items, draft);
   const issues = findings(draft, contract);
   const needsComment = issues.some((i) => i.severity === "warning");
+  const showFindings = Boolean(item.id || editedFields.current.size || draft.fileIds.length && !uploading && !readingSource && !extractionBusy);
   const uploadFiles = async (files: FileList | null) => {
     if (!files?.length) return;
     const selectedFiles = Array.from(files);
@@ -2444,6 +2423,11 @@ function ItemForm({
             ))}
           </select>
         )}
+        {extractFile && editable && (
+          <div className="extraction-wrap">
+            <Extraction file={extractFile} onExtract={applyExtraction} onBusyChange={setExtractionBusy} />
+          </div>
+        )}
         {file ? (
           <div className="file-preview">
             {file.type.startsWith("image/") ? (
@@ -2461,25 +2445,17 @@ function ItemForm({
             </div>
           </div>
         ) : (
-          <div className="empty-file">
-            <FileText size={43} />
-            <h3>Připojte originál dokladu</h3>
-            <p>
-              PDF, JPG, PNG nebo WebP
-              <br />
-              Maximálně 10 MB na soubor
-            </p>
-          </div>
+          <div className="document-empty"><h3>Přiložte doklad</h3><p>Údaje ze souboru se vyplní automaticky.</p></div>
         )}
         {(editable ||
           (item.sfjDecision === "supplement" &&
             state.membership.role !== "federation")) && (
-          <label className={`upload-zone ${uploading ? "disabled" : ""}`}>
+          <label className={`upload-zone ${file ? "has-file" : ""} ${uploading ? "disabled" : ""}`}>
             <Upload size={22} />
             <strong key={String(uploading)}>
-              {uploading ? "Ukládání souboru…" : "Nahrát PDF nebo fotografii"}
+              {uploading ? "Nahrávám…" : file ? "Přidat další přílohu" : "Vybrat doklad"}
             </strong>
-            <span>Vyberte soubor · lze přiložit více příloh</span>
+            <span>{file ? "PDF nebo obrázek · do 10 MB" : "PDF, JPG, PNG, WebP · do 10 MB"}</span>
             <input
               type="file"
               accept="application/pdf,image/jpeg,image/png,image/webp"
@@ -2502,11 +2478,6 @@ function ItemForm({
             <span aria-hidden="true">{readingSource ? <Loader2 size={15} className="spin" /> : <FileText size={15} />}</span>
             <span>{readingSource ? "Načítání pro OCR…" : "Znovu načíst pro OCR"}</span>
           </button>
-        )}
-        {extractFile && editable && (
-          <div className="extraction-wrap">
-            <Extraction file={extractFile} onExtract={applyExtraction} onBusyChange={setExtractionBusy} />
-          </div>
         )}
         {draft.fileIds.length > 0 && editable && (
           <div className="attached-list">
@@ -2536,15 +2507,15 @@ function ItemForm({
           </div>
         )}
       </div>
-      <div className="item-fields">
+      <div className="item-entry"><div className="item-fields">
         <FormError error={error} />
         {duplicate && <div className="notice warning" role="status"><div><strong>Doklad už je v evidenci</strong><p>{`${duplicate.number} · ${duplicate.supplier}. Nalezené údaje jsou vyplněné; uložený doklad můžete otevřít bez vytvoření kopie.`}</p><button type="button" className="button secondary" onClick={()=>onOpenExisting(duplicate)}><span>Otevřít uložený doklad</span></button></div></div>}
-        <form
+        <form id="receipt-form"
           onSubmit={(e) => {
             e.preventDefault();
             setError("");
             if (duplicate) { setError('Tento doklad již je v evidenci. Otevřete uložený doklad.'); return; }
-            if (extractionBusy || readingSource || uploading) return;
+            if (!editable || busy || extractionBusy || readingSource || uploading) return;
             void onSave(draft).catch((x) => setError(x.message));
           }}
         >
@@ -2552,7 +2523,7 @@ function ItemForm({
             <span className="step-circle">1</span>
             <div>
               <h3>Údaje dokladu</h3>
-              <p>Ověřte údaje podle přiloženého originálu.</p>
+              <p>Porovnejte údaje s přiloženým dokladem.</p>
             </div>
           </div>
           <fieldset disabled={!editable || busy}>
@@ -2674,10 +2645,10 @@ function ItemForm({
             <span className="step-circle">2</span>
             <div>
               <h3>Kontrola organizace</h3>
-              <p>Vysvětlení zůstává součástí vyúčtování.</p>
+
             </div>
           </div>
-          {issues.length > 0 ? (
+          {!showFindings ? <p className="form-intro">Nahrajte doklad. Nalezené údaje doplníme do formuláře.</p> : issues.length > 0 ? (
             <div className="finding-list">
               {issues.map((f) => (
                 <div className={`finding ${f.severity}`} key={f.code}>
@@ -2692,7 +2663,7 @@ function ItemForm({
               <span>
                 {draft.excluded
                   ? "Položka je vyřazená; částka se nezapočítává."
-                  : "Základní formální kontrola bez upozornění. Způsobilost ověřte podle smlouvy."}
+                  : "Povinné údaje jsou vyplněné."}
               </span>
             </div>
           )}
@@ -2733,18 +2704,6 @@ function ItemForm({
               </span>
             </label>
           </fieldset>
-          {editable && (
-            <div className="form-footer">
-              <button
-                className="button primary"
-                type="submit"
-                disabled={busy || uploading || readingSource || extractionBusy || !!duplicate}
-              >
-                <Check size={16} />
-                Uložit doklad
-              </button>
-            </div>
-          )}
         </form>
         {!!item.id && (
           <>
@@ -2864,6 +2823,8 @@ function ItemForm({
             )}
           </>
         )}
+      </div>
+      {editable && <div className="item-savebar"><div><strong>{duplicate ? 'Doklad už je v evidenci' : extractionBusy || readingSource ? 'Načítání dokladu…' : issues.some(i=>i.severity==='error') ? 'Doplňte povinné údaje' : 'Zkontrolujte údaje a uložte'}</strong><small>Změny potvrdíte uložením.</small></div><button className="button primary" type="submit" form="receipt-form" disabled={busy || uploading || readingSource || extractionBusy || !!duplicate}><span aria-hidden="true">{busy ? <Loader2 size={16} className="spin"/> : <Check size={16}/>}</span><span>{busy?'Ukládám…':'Uložit doklad'}</span></button></div>}
       </div>
     </div>
   );
@@ -3614,13 +3575,12 @@ function Adviser({
     <div className="adviser-body">
       <div className="adviser-intro">
         <span>
-          <Sparkles size={25} />
+          <BookOpen size={25} />
         </span>
         <div>
-          <h3>Nejdřív podklady, potom rozhodnutí</h3>
+          <h3>Nápověda ke smlouvě</h3>
           <p>
-            Průvodce pomůže najít pravidla ve zdrojích. Konečné posouzení
-            provádí organizace a SFJ.
+            Vyberte smlouvu a položte otázku k jejím podmínkám. Odpověď obsahuje dostupné zdroje.
           </p>
         </div>
       </div>
