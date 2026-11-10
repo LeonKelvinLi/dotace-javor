@@ -15,3 +15,9 @@ ADMIN_PASSWORD='<local test secret of 20+ characters>' DATA_DIR='.render-data' P
 ```
 
 Production deployment requires the attached persistent disk. Do not use a free ephemeral service for real records. OpenAI remains optional and unconfigured; add OPENAI_API_KEY to Render's secret environment through secure setup when authorized. Browser OCR, review workflows, ARES and PDF/CSV reports run without it.
+
+Live service: https://dotace-javor-99x6.onrender.com
+
+Render dashboard: https://dashboard.render.com/web/srv-dbpmmcuc6qcc73dgg7rg
+
+The initial deployment is live at commit `96e3322`. See `docs/VERIFICATION.md` for Chrome evidence and the remaining AI configuration limit. `npm run test:render` checks gateway authorization and restart persistence against the built Worker.

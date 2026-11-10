@@ -39,3 +39,17 @@ After GitHub reported alerts in the starter dependency graph, unused UI packages
 `npm audit` against the final lockfile on 10 November 2026 reports **0 vulnerabilities** (including development dependencies). `npm run db:generate` reports no schema changes; the migration remains unchanged. The final source is rebuilt and its tests rerun before publication.
 
 The patched framework was started in the local Worker preview and browser-verified: sign-in remained valid, the existing database and uploaded receipt were retained, and the contract ledger rendered correctly. The temporary verification tab was closed afterward.
+
+## Render deployment and Chrome verification
+
+Deployed on 10 November 2026 to https://dotace-javor-99x6.onrender.com in the confirmed My Workspace. Render deploy `dep-dbpmmd6c6qcc73dggak0` is live at runtime commit `96e3322e5843fa5bd93e9ceeccb27b3ec12bda91`. Docker image build succeeded. The Oregon 0.5 CPU/512 MB service has the approved 1 GB persistent disk at `/var/data`; expected base cost is $7.25/month before taxes or extra usage. Automatic deploys and Blueprint syncing are disabled.
+
+- Public `/health` returned HTTP 200 after querying D1.
+- Actual Chrome sign-in with the Render-generated owner credential succeeded.
+- Uploaded the fictional OCR PNG, rendered its original, recognized nine fields at 94% OCR confidence, applied the proposal and saved `RENDER-QA-2026-001`. The stored receipt and attachment remained after a full refresh.
+- Marked the fictional seed receipt reviewed, submitted the Talent settlement, verified ordinary editing became locked, batch-accepted both receipts and closed the federation review with an explicit test conclusion. Dashboard shows one approved settlement. These are fictional pilot records only.
+- Chrome downloaded a CSV containing both receipt rows and a two-page PDF containing the new receipt, accepted status and final conclusion. The Chrome download-event helper timed out even though the file downloaded; actual files in Downloads were inspected.
+- No browser console warnings/errors were captured during those checks. Proof: `outputs/render-chrome-live.png` (local, ignored).
+- `npm run test:render` passed five hosting scenarios: anonymous/forged identity rejection, invite-only scoped registration, signed-in identity spoof rejection, persistent records/accounts/sessions/original bytes across process restart, and logout invalidation. Restart persistence was tested locally against the actual built Worker and the same gateway; a production restart was not forced.
+
+Admin email is `admin@javor.example`; retrieve the generated password from the new service's Render Environment page. No production credential is stored in this repository. Multi-user live Chrome sign-up remains unverified; invite acceptance and isolation pass in the hosting and backend tests. OpenAI is still unconfigured, so live AI extraction/adviser behavior is pending. The Render database is independent from the earlier Sites deployment.
