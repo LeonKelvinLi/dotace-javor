@@ -24,6 +24,7 @@ Open the printed localhost URL. The development sign-in creates a local test ide
 ```sh
 npm run typecheck
 npm test
+npm run test:integration
 npm run build
 ```
 

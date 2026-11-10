@@ -31,3 +31,11 @@ Version 1 deployed successfully to [Dotace Javor](https://dotace-javor-pilot.spl
 The native print-dialog action was unreliable in the in-app browser; the final report implementation now creates a directly downloadable PDF with embedded Czech fonts. The direct PDF downloaded successfully in the actual browser as `026-001-2026-O-vyuctovani.pdf`. PDFInfo verified two A4 pages; PDF.js text extraction verified Czech accents, all three cost groups, the partial-claim explanation and the final conclusion.
 
 - Read-only local service checks: ARES returned an actual public registry record; the adviser returned a clearly labelled guide response with contract and 2025 reference sources; missing AI configuration returned an actionable 503 on model extraction. No paid model call was made.
+
+## Dependency hardening
+
+After GitHub reported alerts in the starter dependency graph, unused UI packages and the unused Next.js runtime were removed. Vinext was upgraded to 1.4.4, React/DOM/RSC to 19.3.1, Vite to 8.3.7, the Cloudflare plugin to 1.68.0 and Wrangler to 4.157.0. Zod preview parsing was adapted to v4. Scoped patched overrides cover three transitive dependencies without the breaking downgrades suggested by npm.
+
+`npm audit` against the final lockfile on 10 November 2026 reports **0 vulnerabilities** (including development dependencies). `npm run db:generate` reports no schema changes; the migration remains unchanged. The final source is rebuilt and its tests rerun before publication.
+
+The patched framework was started in the local Worker preview and browser-verified: sign-in remained valid, the existing database and uploaded receipt were retained, and the contract ledger rendered correctly. The temporary verification tab was closed afterward.
