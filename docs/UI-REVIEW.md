@@ -19,3 +19,7 @@ Verification:
 - 35 unit/lifecycle/extraction checks, 14 backend scenarios and six hosting scenarios pass (55 total); type check and production build pass.
 
 Native UI copy remains Czech. Browser-provided translations were exercised during QA. CSS presentation changes are scoped to screen media so printable summaries retain their existing layout.
+
+Live release: Render deployment `dep-dbpoms6gekts73emgiq0` is live at `d14e1ec29c964ddb5ea1858348ea7f891cc49b90` (10 November 2026). Public health check returned 200. Live Chrome verified the actionable review total, two-contract filtered result, filter reset, split receipt editor, automatic WebP field filling, and Save bar within the desktop viewport. The live 390 px overview had a 390 px document width and readable stacked contract rows. Viewport overrides were reset and the app was left open on the redesigned desktop overview. No browser errors were captured in the final live session. No production contracts, receipts or approvals were created during this UI release verification.
+
+Screenshots (local ignored artifacts): `outputs/ui-refresh/dashboard-desktop.png`, `receipt-desktop.png`, and `dashboard-mobile.png`.
