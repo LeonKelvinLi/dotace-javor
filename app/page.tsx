@@ -132,7 +132,7 @@ const blankItem = (contract: Contract): Item => ({
   category: "services",
   amount: 0,
   claimed: 0,
-  date: today(),
+  date: "",
   payment: "bank",
   recipientType: "organization",
   recipientName: "",
@@ -2392,7 +2392,7 @@ function ItemForm({
         ([k, v]) => allowed.includes(k) && v !== undefined && v !== null,
       ),
     );
-    setDraft((old) => ({ ...old, ...patch, orgReview: "unchecked" }));
+    setDraft((old) => ({ ...old, ...patch, ...(typeof fields.extractionNote === "string" ? { comment: [old.comment, fields.extractionNote].filter(Boolean).join("\n") } : {}), orgReview: "unchecked" }));
   };
   return (
     <div className="item-editor">

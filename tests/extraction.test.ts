@@ -81,3 +81,29 @@ test('foreign-currency totals never become CZK claims without a verified convers
     assert.equal(fields.claimed, undefined, currency);
   }
 });
+
+const { documentProposal, parsePaymentDate, convertToCzk } = await import(new URL('../lib/extraction.ts', import.meta.url).href) as typeof import('../lib/extraction');
+test('English invoices extract identifiers, supplier, total, category and actual payment date', () => {
+  const p = documentProposal('INVOICE TEST DOCUMENT\nInvoice number: EN-2026-011\nSupplier: Example Sports Ltd\nCompany ID: 12345678\nDescription: Training venue rental\nSubtotal: CZK 1,000.00\nVAT: CZK 210.00\nTotal due: CZK 1,210.00\nDue date: 30 October 2026\nPayment date: October 20, 2026\nPayment method: Bank transfer');
+  assert.equal(p.fields.number, 'EN-2026-011'); assert.equal(p.fields.supplier, 'Example Sports Ltd');
+  assert.equal(p.fields.supplierIco, '12345678'); assert.equal(p.fields.amount, 1210); assert.equal(p.fields.date,'2026-10-20'); assert.equal(p.fields.category,'services'); assert.equal(p.fields.payment,'bank');
+});
+test('foreign invoices retain original amount and currency for explicit documented conversion', () => {
+  const p = documentProposal('Invoice no.: EN-2026-012\nTotal due: EUR 1,210.00');
+  assert.equal(p.sourceAmount,1210); assert.equal(p.currency,'EUR'); assert.equal(p.fields.amount,undefined);
+  const conversion = convertToCzk(p.sourceAmount!,25,'Test rate 2026-10-20'); assert.equal(conversion.amount,30250); assert.match(conversion.note,/Test rate/);
+  for (const rate of [0,-1,Infinity,NaN]) assert.throws(()=>convertToCzk(1210,rate,'Test rate'));
+  assert.throws(()=>convertToCzk(1210,25,''));
+});
+test('invalid and ambiguous payment dates are not guessed', () => {
+  for (const input of ['31.2.2026','2026-02-29','10/11/2026','November 31, 2026']) assert.equal(parsePaymentDate(input),undefined,input);
+  assert.equal(parsePaymentDate('2024-02-29'),'2024-02-29'); assert.equal(parsePaymentDate('20 October 2026'),'2026-10-20');
+});
+test('a buyer IČO preceding the seller is never used as the supplier ID', () => {
+  const p = documentProposal('Bill to: Our Club\nIČO: 11111111\nSupplier: Sports Ltd\nIČO: 22222222\nTotal due: 100 CZK'); assert.equal(p.fields.supplierIco,'22222222');
+});
+test('conflicting totals require review and localized money formats retain precision', () => {
+  assert.equal(documentProposal('Total due: 100 CZK\nTotal due: 200 CZK').fields.amount,undefined);
+  assert.equal(parseCzechAmount('EUR 1,234.56'),1234.56); assert.equal(parseCzechAmount('1.234,56 EUR'),1234.56);
+  assert.equal(parseCzechAmount('1,234,567.89 USD'),1234567.89); assert.equal(parseCzechAmount('1,23,4.56'),undefined);
+});
