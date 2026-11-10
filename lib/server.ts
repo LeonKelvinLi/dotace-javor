@@ -3,6 +3,7 @@ import { getChatGPTUser, type ChatGPTUser } from '@/app/chatgpt-auth';
 import type { AppState, AuditEvent, Contract, Feedback, Item, Membership, Organization, StoredFile } from './model';
 import { cents, findings, submissionErrors } from './model';
 import { digest, seedDemo } from './seed';
+import { duplicateReceipt } from './autofill';
 
 export class ApiError extends Error {
   constructor(public status:number,message:string,public details:string[]=[]){super(message);}
@@ -137,9 +138,13 @@ export async function command(ctx:ServerContext,action:string,raw:unknown):Promi
     if(old&&version(source.version)!==old.version)throw new ApiError(409,'Doklad byl změněn. Obnovte stránku.');
     const m={...(old||{}),...source};
     const i:Item={id:old?.id||id('item'),contractId:c.id,number:text(m.number??'','Číslo dokladu',150),supplier:text(m.supplier??'','Dodavatel',250),supplierIco:text(m.supplierIco??'','IČO dodavatele',30),description:text(m.description??'','Popis nákladu',3000),category:choice(m.category,['materials','services','wages'],'Skupina nákladů'),amount:money(m.amount,'Částka dokladu'),claimed:money(m.claimed,'Uplatněná částka'),date:date(m.date??'','Datum úhrady',true),payment:choice(m.payment,['bank','cash'],'Úhrada'),recipientType:choice(m.recipientType,['organization','person','none','other'],'Odběratel'),recipientName:text(m.recipientName??'','Jméno odběratele',250),comment:text(m.comment??'','Komentář',10000),orgReview:choice(m.orgReview??'unchecked',['unchecked','checked','commented'],'Kontrola organizace'),sfjDecision:'pending',sfjReason:'',excluded:m.excluded===true,fileIds:await validateFiles(ctx,m.fileIds??[],c),version:(old?.version||0)+1};
+    if(duplicateReceipt(await all<Item>(ctx.db,'items','WHERE contract_id=?',[c.id]),i))throw new ApiError(409,'Tento doklad od stejného dodavatele už je ve smlouvě uložený. Otevřete existující doklad.');
     if(i.orgReview==='commented'&&!i.comment&&!i.excluded)throw new ApiError(400,'Kontrola s komentářem vyžaduje vyplněný komentář.');
     if(i.orgReview!=='unchecked'&&!i.excluded){const f=findings(i,c);const hard=f.filter(f=>f.severity==='error');if(hard.length)throw new ApiError(400,'Doklad nelze potvrdit. Uložte jej jako nezkontrolovaný nebo opravte chyby.',hard.map(f=>f.message));if(f.some(f=>f.severity==='warning')&&(!i.comment||i.orgReview!=='commented'))throw new ApiError(400,'Položka s upozorněním vyžaduje komentář a stav „S komentářem“.');}
-    const statement=old?ctx.db.prepare("UPDATE items SET data=?,version=?,amount_cents=?,claimed_cents=? WHERE id=? AND version=? AND EXISTS (SELECT 1 FROM contracts WHERE id=? AND status IN ('draft','changes'))").bind(json(i),i.version,cents(i.amount),cents(i.claimed),i.id,old.version,c.id):ctx.db.prepare("INSERT INTO items (id,organization_id,contract_id,version,amount_cents,claimed_cents,data) SELECT ?,?,?,?,?,?,? WHERE EXISTS (SELECT 1 FROM contracts WHERE id=? AND status IN ('draft','changes'))").bind(i.id,c.organizationId,c.id,i.version,cents(i.amount),cents(i.claimed),json(i),c.id);
+    // Keep duplicate protection in the write itself, including simultaneous imports.
+    const noDuplicate = " AND NOT EXISTS (SELECT 1 FROM items dup WHERE dup.contract_id=? AND dup.id<>? AND json_extract(dup.data,'$.number')<>'' AND json_extract(dup.data,'$.supplier')<>'' AND lower(trim(json_extract(dup.data,'$.number')))=? AND (lower(trim(json_extract(dup.data,'$.supplier')))=? OR (?<>'' AND json_extract(dup.data,'$.supplierIco')=?)))";
+    const duplicateArgs = [c.id,i.id,i.number.trim().toLowerCase(),i.supplier.trim().toLowerCase(),i.supplierIco,i.supplierIco];
+    const statement=old?ctx.db.prepare("UPDATE items SET data=?,version=?,amount_cents=?,claimed_cents=? WHERE id=? AND version=? AND EXISTS (SELECT 1 FROM contracts WHERE id=? AND status IN ('draft','changes'))"+noDuplicate).bind(json(i),i.version,cents(i.amount),cents(i.claimed),i.id,old.version,c.id,...duplicateArgs):ctx.db.prepare("INSERT INTO items (id,organization_id,contract_id,version,amount_cents,claimed_cents,data) SELECT ?,?,?,?,?,?,? WHERE EXISTS (SELECT 1 FROM contracts WHERE id=? AND status IN ('draft','changes'))"+noDuplicate).bind(i.id,c.organizationId,c.id,i.version,cents(i.amount),cents(i.claimed),json(i),c.id,...duplicateArgs);
     await mutate(ctx,statement,auditStatement(ctx,old?'item.updated':'item.created',`${i.number||'Rozpracovaný doklad'} · ${i.orgReview}${i.excluded?' · vyřazeno':''}`,c.organizationId,c.id,i.id,true));return {id:i.id};
   }
   if(action==='reviewItem'){

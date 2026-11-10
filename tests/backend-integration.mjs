@@ -57,7 +57,7 @@ const bindings = { DB: db, BUCKET: bucket };
 const loaded = new Map();
 function loadApplicationModule(name) {
   if (loaded.has(name)) return loaded.get(name);
-  assert.ok(['server', 'model', 'seed'].includes(name), `Unexpected application import: ${name}`);
+  assert.ok(['server', 'model', 'seed', 'autofill'].includes(name), `Unexpected application import: ${name}`);
   const compiledModule = { exports: {} };
   const output = ts.transpileModule(readFileSync(path.join(root, 'lib', `${name}.ts`), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
@@ -124,6 +124,11 @@ try {
     await rejectStatus(() => server.command(organization, 'saveItem', { item: { ...initial, orgReview: 'commented', comment: '' } }), 400);
     await rejectStatus(() => server.command(organization, 'saveItem', { item: { ...initial, fileIds: ['file-item-lipa'] } }), 400);
     await rejectStatus(() => server.command(organization, 'saveItem', { item: { ...initial, orgReview: 'checked', recipientType: 'other', comment: 'A comment cannot override this error.' } }), 400);
+  });
+  await check('duplicate receipt imports cannot create a second cost in the same contract', async () => {
+    const before = (await server.readState(organization)).items.length;
+    await rejectStatus(() => server.command(organization, 'saveItem', {item:{...initial,id:'',version:0,number:initial.number.toLowerCase(),supplier:initial.supplier.toUpperCase()}}),409);
+    assert.equal((await server.readState(organization)).items.length,before);
   });
   await check('unchecked items and ordinary-member declarations cannot be submitted', async () => {
     await rejectStatus(() => server.command(organization, 'submit', { contractId: contract.id, version: contract.version, declaration: true }), 400);

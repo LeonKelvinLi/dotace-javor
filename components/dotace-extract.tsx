@@ -1,10 +1,23 @@
 'use client';
 import { Component, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { ScanText, LoaderCircle, Check, AlertCircle } from 'lucide-react';
-import { extractDocument, convertToCzk, type ExtractionMode, type ExtractionResult } from '@/lib/extraction';
+import { extractDocument, convertToCzk, type ExtractionMode, type ExtractionContext, type ExtractionResult } from '@/lib/extraction';
 
-function DotaceExtract({ file, mode = 'receipt', onExtract }: { file: File; mode?: ExtractionMode; onExtract: (fields: Record<string, unknown>) => void }) {
-  const [busy, setBusy] = useState(false), [message, setMessage] = useState(''), [result, setResult] = useState<ExtractionResult | null>(null), [error, setError] = useState(''), [aiEnabled,setAIEnabled] = useState(false);
+type Props = { file: File; mode?: ExtractionMode; onExtract: (fields: Record<string, unknown>, context: ExtractionContext) => void; onBusyChange?: (busy: boolean) => void };
+function DotaceExtract({ file, mode = 'receipt', onExtract, onBusyChange }: Props) {
+  const [busy, setBusy] = useState(false), [message, setMessage] = useState(''), [documentResult, setResult] = useState<ExtractionResult | null>(null), [error, setError] = useState(''), [aiEnabled,setAIEnabled] = useState(false);
+  const [selected, setSelected] = useState(0);
+  const result = documentResult ? {...documentResult, ...(documentResult.receipts?.[selected] || {})} : null;
+  const callbacks = useRef({onExtract,onBusyChange}); callbacks.current = {onExtract,onBusyChange};
+  const selection = `${file.name}:${file.size}:${file.lastModified}:${selected}`;
+  useEffect(()=>{callbacks.current.onBusyChange?.(busy); return ()=>callbacks.current.onBusyChange?.(false);},[busy]);
+  useEffect(()=>{
+    if (!documentResult) return;
+    const active = documentResult.receipts?.[selected] || documentResult;
+    const fields = {...active.fields};
+    if (active.currency && active.currency !== 'CZK') { fields.amount=0; if(mode==='receipt') fields.claimed=0; }
+    callbacks.current.onExtract(fields,{selection,isReport:Boolean(documentResult.receipts)});
+  },[documentResult,selected,selection,mode]);
   const [rate, setRate] = useState(''), [rateSource, setRateSource] = useState('');
   useEffect(() => { fetch('/api/ai').then(r=>r.json() as Promise<{enabled:boolean}>).then(r=>setAIEnabled(r.enabled===true)).catch(()=>{}); }, []);
   const current = useRef<AbortController | null>(null);
@@ -41,15 +54,15 @@ function DotaceExtract({ file, mode = 'receipt', onExtract }: { file: File; mode
       if (foreign) { fields.amount = 0; if (mode === 'receipt') fields.claimed = 0; }
       if (convert) {
         const converted = convertToCzk(result.sourceAmount!, Number(rate.replace(',','.')), rateSource);
-        fields.amount = converted.amount; if (mode === 'receipt') fields.claimed = converted.amount;
-        fields.extractionNote = `${result.currency}: ${converted.note}`;
+        fields.amount = converted.amount; if (mode === 'receipt') fields.claimed = convertToCzk(result.sourceClaimed ?? result.sourceAmount!, Number(rate.replace(',','.')), rateSource).amount;
+        fields.extractionNote = `${result.currency}: ${converted.note}${mode === 'receipt' && fields.claimed !== converted.amount ? ` Uplatněno po přepočtu: ${fields.claimed} Kč.` : ''}`;
       }
-      onExtract(fields);
+      callbacks.current.onExtract(fields, {selection,replace:true,isReport:Boolean(documentResult?.receipts)});
     } catch (e) { setError(e instanceof Error ? e.message : 'Přepočet se nezdařil.'); }
   }
   return <div className="extract-panel" style={{ border: '1px solid #d9e4dc', borderRadius: 12, padding: 14, marginTop: 12, background: '#f6faf6' }}>
     <div style={{ display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
-      <div><strong style={{ fontSize: 13 }}>Automatické čtení dokumentu</strong><p style={{ fontSize: 12, color: '#66756b', margin: '3px 0 0' }}>{`OCR se spouští automaticky a čte všechny stránky v prohlížeči. PDF, JPG, PNG, WebP · do 10 MB a 10 stran.${aiEnabled?' AI odešle vybraný soubor do OpenAI.':''} Návrh ověřte podle originálu.`}</p></div>
+      <div><strong style={{ fontSize: 13 }}>Automatické čtení dokumentu</strong><p style={{ fontSize: 12, color: '#66756b', margin: '3px 0 0' }}>{`OCR čte všechny stránky a nalezené údaje automaticky vyplní do formuláře. PDF, JPG, PNG, WebP · do 10 MB a 10 stran.${aiEnabled?' AI odešle vybraný soubor do OpenAI.':''} Návrh ověřte podle originálu.`}</p></div>
       <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
         <button type="button" className="btn secondary" onClick={()=>void run()} disabled={busy}>
           <span aria-hidden="true" translate="no">{busy ? <LoaderCircle size={16} className="spin" /> : <ScanText size={16} />}</span>
@@ -59,9 +72,11 @@ function DotaceExtract({ file, mode = 'receipt', onExtract }: { file: File; mode
         {aiEnabled && result && <button type="button" className="btn primary" disabled={busy} onClick={()=>void run(true)}><span>Ověřit pomocí AI</span></button>}
       </div>
     </div>
-    <p role="status" aria-live="polite" translate="no" style={{ fontSize: 12, marginTop: 10 }}>{busy ? message : result ? 'OCR dokončeno. Zkontrolujte návrh níže.' : message === 'Čtení zastaveno.' ? message : ''}</p>
+    <p role="status" aria-live="polite" translate="no" style={{ fontSize: 12, marginTop: 10 }}>{busy ? message : result ? 'OCR dokončeno. Nalezené údaje jsou vyplněné ve formuláři.' : message === 'Čtení zastaveno.' ? message : ''}</p>
     {error && <div role="alert" style={{ color: '#a13e34', fontSize: 13, marginTop: 10 }}><span aria-hidden="true"><AlertCircle size={14} /></span><p>{error}</p><p>Příloha a rozepsané údaje zůstávají zachované. Čtení můžete zopakovat.</p></div>}
     {result && <div style={{ marginTop: 12 }}>
+      {documentResult!.receipts && <label style={{display:'block',fontSize:13,marginBottom:12}}><span>Doklad ve vyúčtování</span><select aria-label="Doklad ve vyúčtování" value={selected} onChange={e=>{setSelected(Number(e.target.value));setRate('');setRateSource('');}} style={{width:'100%',marginTop:6}}>{documentResult!.receipts.map((receipt,i)=><option key={i} value={i}>{`${i+1}. ${receipt.fields.number} · ${receipt.fields.supplier}`}</option>)}</select><small style={{display:'block',marginTop:6}}>Vyúčtování obsahuje více dokladů. Vybraný doklad se automaticky vyplní samostatně.</small></label>}
+
       <p style={{ fontSize: 12 }}>{`${result.method}${result.pages > 0 ? ` · ${result.pages} stran` : ''}${result.confidence !== undefined ? ` · jistota OCR ${Math.round(result.confidence)} %` : ''}`}</p>
       {result.warnings?.map(w=><p key={w} role="status" style={{color:'#8a5919',fontSize:12}}>{w}</p>)}
       <details><summary style={{ cursor: 'pointer', fontSize: 13 }}>Rozpoznaný text</summary><textarea aria-label="Rozpoznaný text" translate="no" value={result.text} readOnly rows={7} style={{ width: '100%', marginTop: 8 }} /></details>
@@ -74,7 +89,7 @@ function DotaceExtract({ file, mode = 'receipt', onExtract }: { file: File; mode
           <button type="button" className="btn primary" style={{marginTop:10}} disabled={!rate.trim()||!rateSource.trim()} onClick={()=>apply(true)}>Použít údaje a přepočet do Kč</button>
         </>}
       </div>}
-      {Object.keys(result.fields).length > 0 ? <><p style={{ fontSize: 12, color: '#66756b' }}>{`Rozpoznáno ${Object.keys(result.fields).length} polí. Použití návrhu změní formulář; uložení potvrdíte zvlášť.`}</p><button type="button" className="btn primary" onClick={() => apply()}><span aria-hidden="true"><Check size={16} /></span><span>{foreign?'Použít údaje bez částky':'Použít rozpoznané údaje'}</span></button></> : <p style={{ fontSize: 13 }}>Text byl přečten. Dokladové údaje nebyly nalezeny; text můžete zkopírovat. Smlouvy a obecné podklady přiložte ve Smlouva a podmínky.</p>}
+      {Object.keys(result.fields).length > 0 ? <><p style={{ fontSize: 12, color: '#66756b' }}>{`Rozpoznáno ${Object.keys(result.fields).length} polí. Nalezené údaje jsou vyplněné. Ověřte je a uložte doklad.`}</p><button type="button" className="btn primary" onClick={() => apply()}><span aria-hidden="true"><Check size={16} /></span><span>{foreign?'Znovu vyplnit údaje bez částky':'Znovu vyplnit z dokumentu'}</span></button></> : <p style={{ fontSize: 13 }}>Text byl přečten. Dokladové údaje nebyly nalezeny; text můžete zkopírovat. Smlouvy a obecné podklady přiložte ve Smlouva a podmínky.</p>}
     </div>}
   </div>;
 }
@@ -88,6 +103,6 @@ class ExtractionBoundary extends Component<{children: ReactNode}, {failed: boole
     return <div key={this.state.attempt}>{this.props.children}</div>;
   }
 }
-export default function SafeExtraction(props: { file: File; mode?: ExtractionMode; onExtract: (fields: Record<string, unknown>) => void }) {
+export default function SafeExtraction(props: Props) {
   return <ExtractionBoundary key={`${props.file.name}:${props.file.lastModified}:${props.file.size}`}><DotaceExtract {...props} /></ExtractionBoundary>;
 }

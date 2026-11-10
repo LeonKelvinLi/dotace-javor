@@ -1,0 +1,56 @@
+SFJ / DOTACE   FIKTIVNÍ PILOTNÍ DATA 
+Vyúčtování dotace 
+FK Háj, z. s. 
+Smlouva: 026-001-2026-O · Organizace · 2026
+Organizace: IČO 00000001 · Ukázková 12, Město Háj
+Stav vyúčtování: Rozpracováno
+Období úhrad: 1. 1. 2026 – 31. 12. 2026
+Termín vyúčtování: 15. 1. 2027 
+Přidělená dotace 
+120 000,00 Kč 
+Uplatněné náklady 
+42 500,00 Kč 
+Krácení dotace 
+0,00 Kč 
+Dotace po krácení 
+120 000,00 Kč 
+Souhrn podle skupin nákladů 
+Skupina nákladů   Počet   Uplatněno   Akceptováno 
+Spotřeba materiálu   1   18 500,00 Kč   0,00 Kč 
+Služby včetně OSVČ   1   24 000,00 Kč   0,00 Kč 
+Mzdy včetně odvodů   0   0,00 Kč   0,00 Kč 
+Celkem   2   42 500,00 Kč   0,00 Kč 
+Vyřazené položky se do součtů nezapočítávají. Akceptované částky vycházejí z jednotlivých rozhodnutí SFJ. 
+Doklady vyúčtování 
+1. FV-2026-101 · Sport Vzor s.r.o. 
+Tréninkové míče a pomůcky 
+Skupina nákladů: Spotřeba materiálu
+Částky: Doklad 18 500,00 Kč · Uplatněno 18 500,00 Kč
+Úhrada: 15. 9. 2026 · Banka
+IČO dodavatele: 00000010
+Odběratel: Organizace
+Kontrola organizace: Zkontrolováno
+Posouzení SFJ: K posouzení
+Přílohy: FIKTIVNI-FV-2026-101.pdf 
+SFJ · Fiktivní pilotní údaje · Vytvořeno 10. 11. 2026 10:48:44   1 / 2 
+SFJ / DOTACE   026-001-2026-O 
+2. FV-2026-108 · Areál Ukázkov s.r.o. 
+Pronájem sportovní haly na září 
+Skupina nákladů: Služby včetně OSVČ
+Částky: Doklad 32 000,00 Kč · Uplatněno 24 000,00 Kč
+Úhrada: 15. 9. 2026 · Banka
+IČO dodavatele: 00000010
+Odběratel: Organizace
+Kontrola organizace: Nezkontrolováno
+Posouzení SFJ: K posouzení
+Přílohy: FIKTIVNI-FV-2026-108.pdf 
+Prohlášení příjemce dotace 
+Potvrzuji pravdivost a věcnou správnost údajů uvedených v tomto vyúčtování. Údaje jsou zavedené a zaúčtované v
+našem účetnictví nebo evidenci. Za věcnou správnost a skutečné uskutečnění plnění odpovídá naše organizace. 
+Vyúčtování dosud nebylo odesláno; prohlášení nebylo potvrzeno. 
+Závěr kontroly SFJ 
+Kontrola dosud nebyla uzavřena. 
+Neuznané položky: 0,00 Kč
+Krácení dotace: 0,00 Kč 
+SFJ provádí formální kontrolu; organizace odpovídá za věcnou správnost a skutečné uskutečnění plnění. 
+SFJ · Fiktivní pilotní údaje · Vytvořeno 10. 11. 2026 10:48:44   2 / 2 

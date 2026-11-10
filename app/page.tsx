@@ -44,7 +44,8 @@ import {
   X,
 } from "lucide-react";
 import Extraction from "@/components/dotace-extract";
-import { parsePaymentDate } from "@/lib/extraction";
+import { parsePaymentDate, type ExtractionContext } from "@/lib/extraction";
+import { mergeAutofill, duplicateReceipt, type AutofillState } from "@/lib/autofill";
 import DocumentPreview from "@/components/dotace-document";
 import {
   AppState,
@@ -1657,6 +1658,7 @@ export default function DotaceApp() {
               onSave={(i) =>
                 mutate("saveItem", { item: i }).then(() => setModal(null))
               }
+              onOpenExisting={(existing) => setModal({type:"item",item:existing})}
               onDecision={(decision, reason) =>
                 mutate("reviewItem", {
                   id: modal.item?.id,
@@ -1934,6 +1936,9 @@ function OrganizationForm({
       representatives: ["", ""],
     },
   );
+  const manualFields = useRef(new Set<string>());
+  const autoFields = useRef<AutofillState>({values:{},selection:''});
+  const [ocrBusy, setOcrBusy] = useState(false);
   const [error, setError] = useState("");
   const [sourceFile, setSourceFile] = useState<File | null>(null);
   const [lookingUp, setLookingUp] = useState(false);
@@ -1956,14 +1961,16 @@ function OrganizationForm({
       setLookingUp(false);
     }
   };
-  const change = (key: keyof Organization, value: unknown) =>
-    setO({ ...o, [key]: value });
+  const change = (key: keyof Organization, value: unknown) => {
+    manualFields.current.add(key); setO(old=>({...old,[key]:value}));
+  };
   return (
     <form
       className="form-body"
       onSubmit={(e) => {
         e.preventDefault();
         setError("");
+        if (ocrBusy) return;
         void onSave({
           ...o,
           representatives: o.representatives.filter((x) => x.trim()),
@@ -1992,7 +1999,8 @@ function OrganizationForm({
           <Extraction
             file={sourceFile}
             mode="organization"
-            onExtract={(fields) => {
+            onBusyChange={setOcrBusy}
+            onExtract={(fields,context) => {
               const allowed = [
                 "name",
                 "ico",
@@ -2002,14 +2010,8 @@ function OrganizationForm({
                 "bank",
                 "representatives",
               ];
-              setO((old) => ({
-                ...old,
-                ...Object.fromEntries(
-                  Object.entries(fields).filter(([key]) =>
-                    allowed.includes(key),
-                  ),
-                ),
-              }));
+              const proposed = Object.fromEntries(Object.entries(fields).filter(([key])=>allowed.includes(key)));
+              setO(old=>{const merged=mergeAutofill(old,proposed,autoFields.current,{selection:context.selection,manual:manualFields.current,isNew:!organization,replace:context.replace});autoFields.current=merged.state;return merged.value;});
               setSource("Návrh z dokumentu · ověřte podle originálu");
             }}
           />
@@ -2110,7 +2112,7 @@ function OrganizationForm({
         smlouvě v profilu organizace.
       </div>
       <div className="form-footer">
-        <button className="button primary" type="submit" disabled={busy}>
+        <button className="button primary" type="submit" disabled={busy || ocrBusy}>
           <span aria-hidden="true">{busy ? <Loader2 size={16} className="spin" /> : <Check size={16} />}</span>
           <span>Uložit organizaci</span>
         </button>
@@ -2281,6 +2283,7 @@ function ItemForm({
   busy,
   upload,
   onSave,
+  onOpenExisting,
   onDecision,
   onReply,
 }: {
@@ -2292,13 +2295,19 @@ function ItemForm({
   busy: boolean;
   upload: (file: File) => Promise<StoredFile>;
   onSave: (i: Item) => Promise<unknown>;
+  onOpenExisting: (i: Item) => void;
   onDecision: (d: Item["sfjDecision"], reason: string) => Promise<unknown>;
   onReply: (text: string, fileIds: string[]) => Promise<unknown>;
 }) {
+  const organizationName = state.organizations.find(o=>o.id===contract.organizationId)?.name || '';
   const [draft, setDraft] = useState<Item>({
     ...item,
+    recipientName: item.recipientName || (item.recipientType === 'organization' ? organizationName : ''),
     fileIds: [...item.fileIds],
   });
+  const editedFields = useRef(new Set<string>());
+  const autofill = useRef<AutofillState>({values: item.recipientName ? {} : {recipientName:organizationName},selection:''});
+  const [extractionBusy, setExtractionBusy] = useState(false);
   const [error, setError] = useState("");
   const [uploading, setUploading] = useState(false);
   const [newFiles, setNewFiles] = useState<StoredFile[]>([]);
@@ -2312,13 +2321,16 @@ function ItemForm({
   );
   const [reason, setReason] = useState(item.sfjReason);
   const [reply, setReply] = useState("");
-  const change = (key: keyof Item, value: unknown) =>
+  const change = (key: keyof Item, value: unknown) => {
+    editedFields.current.add(key);
     setDraft((prev) => ({ ...prev, [key]: value }));
+  };
   const allFiles = [
     ...state.files,
     ...newFiles.filter((f) => !state.files.some((s) => s.id === f.id)),
   ];
   const file = allFiles.find((f) => f.id === selectedFile);
+  const duplicate = duplicateReceipt(state.items, draft);
   const issues = findings(draft, contract);
   const needsComment = issues.some((i) => i.severity === "warning");
   const uploadFiles = async (files: FileList | null) => {
@@ -2327,19 +2339,13 @@ function ItemForm({
     setUploading(true);
     setError("");
     try {
-      const added: StoredFile[] = [];
-      for (const f of selectedFiles) {
+      for (const [index,f] of selectedFiles.entries()) {
         const uploaded = await upload(f);
-        added.push(uploaded);
         sourceFiles.current.set(uploaded.id, f);
+        setNewFiles(old=>[...old,uploaded]);
+        setDraft(old=>({...old,fileIds:[...old.fileIds,uploaded.id]}));
+        if (index === 0) { setSelectedFile(uploaded.id); if (editable) setExtractFile(f); }
       }
-      setNewFiles((old) => [...old, ...added]);
-      setDraft((old) => ({
-        ...old,
-        fileIds: [...old.fileIds, ...added.map((f) => f.id)],
-      }));
-      setSelectedFile(added[0].id);
-      if (editable) setExtractFile(selectedFiles[0]);
     } catch (x) {
       setError((x as Error).message);
     } finally {
@@ -2368,7 +2374,7 @@ function ItemForm({
     })();
     return () => { disposed = true; clearTimeout(timer); controller.abort(); };
   }, [selectedFile, editable, file?.id, file?.name, file?.type, sourceAttempt]);
-  const applyExtraction = (fields: Record<string, unknown>) => {
+  const applyExtraction = (fields: Record<string, unknown>, context: ExtractionContext) => {
     const allowed = [
       "number",
       "supplier",
@@ -2380,14 +2386,27 @@ function ItemForm({
       "date",
       "payment",
       "recipientType",
-      "recipientName",
+      "recipientName", "comment", "excluded",
     ];
     const patch = Object.fromEntries(
       Object.entries(fields).filter(
         ([k, v]) => allowed.includes(k) && v !== undefined && v !== null,
       ),
     );
-    setDraft((old) => ({ ...old, ...patch, ...(typeof fields.extractionNote === "string" ? { comment: [old.comment, fields.extractionNote].filter(Boolean).join("\n") } : {}), orgReview: "unchecked" }));
+    setDraft((old) => {
+      const known = duplicateReceipt(state.items, {...old,...patch} as Item);
+      const available = known ? Object.fromEntries(allowed.map(key=>[key,known[key as keyof Item]])) : {};
+      const proposed = {...available,...patch};
+      if (!proposed.recipientName && (proposed.recipientType ?? old.recipientType) === 'organization') proposed.recipientName = organizationName;
+      const sameName=(a:string,b:string)=>a.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'')===b.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');
+      if (proposed.recipientName && !sameName(String(proposed.recipientName),organizationName) && (context.isReport && proposed.recipientType==='organization' || /s\.\s*r\.\s*o|ltd|inc\b|a\.\s*s\./i.test(String(proposed.recipientName)))) proposed.recipientType = 'other';
+      const merged = mergeAutofill(old, proposed, autofill.current, {selection:context.selection,manual:editedFields.current,isNew:!item.id,replace:context.replace});
+      autofill.current = merged.state;
+      const next = merged.value;
+      if (typeof fields.extractionNote === 'string' && !next.comment.includes(fields.extractionNote)) next.comment = [next.comment,fields.extractionNote].filter(Boolean).join('\n');
+      const changed = allowed.some(key=>next[key as keyof Item]!==old[key as keyof Item]);
+      return {...next, orgReview: changed ? 'unchecked' : old.orgReview};
+    });
   };
   return (
     <div className="item-editor">
@@ -2486,7 +2505,7 @@ function ItemForm({
         )}
         {extractFile && editable && (
           <div className="extraction-wrap">
-            <Extraction file={extractFile} onExtract={applyExtraction} />
+            <Extraction file={extractFile} onExtract={applyExtraction} onBusyChange={setExtractionBusy} />
           </div>
         )}
         {draft.fileIds.length > 0 && editable && (
@@ -2519,10 +2538,13 @@ function ItemForm({
       </div>
       <div className="item-fields">
         <FormError error={error} />
+        {duplicate && <div className="notice warning" role="status"><div><strong>Doklad už je v evidenci</strong><p>{`${duplicate.number} · ${duplicate.supplier}. Nalezené údaje jsou vyplněné; uložený doklad můžete otevřít bez vytvoření kopie.`}</p><button type="button" className="button secondary" onClick={()=>onOpenExisting(duplicate)}><span>Otevřít uložený doklad</span></button></div></div>}
         <form
           onSubmit={(e) => {
             e.preventDefault();
             setError("");
+            if (duplicate) { setError('Tento doklad již je v evidenci. Otevřete uložený doklad.'); return; }
+            if (extractionBusy || readingSource || uploading) return;
             void onSave(draft).catch((x) => setError(x.message));
           }}
         >
@@ -2598,6 +2620,7 @@ function ItemForm({
                   value={draft.amount || ""}
                   onChange={(e) => {
                     const amount = Number(e.target.value);
+                    editedFields.current.add('amount'); editedFields.current.add('claimed');
                     setDraft((old) => ({
                       ...old,
                       amount,
@@ -2629,7 +2652,7 @@ function ItemForm({
               <Field label="Doklad vystaven na">
                 <select
                   value={draft.recipientType}
-                  onChange={(e) => change("recipientType", e.target.value)}
+                  onChange={(e) => { change("recipientType",e.target.value); change("recipientName",e.target.value === "organization" ? organizationName : ""); }}
                 >
                   <option value="organization">Na naši organizaci</option>
                   <option value="person">Na osobu</option>
@@ -2715,7 +2738,7 @@ function ItemForm({
               <button
                 className="button primary"
                 type="submit"
-                disabled={busy || uploading}
+                disabled={busy || uploading || readingSource || extractionBusy || !!duplicate}
               >
                 <Check size={16} />
                 Uložit doklad
@@ -2816,7 +2839,7 @@ function ItemForm({
                   </Field>
                   <button
                     className="button primary"
-                    disabled={busy || uploading}
+                    disabled={busy || uploading || readingSource || extractionBusy || !!duplicate}
                   >
                     <Send size={16} />
                     Odeslat doplnění

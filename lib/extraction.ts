@@ -1,6 +1,8 @@
 import { abortable, abortError, checkAbort, rasterSize, withOcrSlot } from './ocr-lifecycle.ts';
 export type ExtractionMode = 'receipt' | 'organization' | 'contract';
-export type ExtractionResult = { text: string; fields: Record<string, unknown>; method: string; pages: number; confidence?: number; currency?: string; sourceAmount?: number; warnings?: string[] };
+export type ReceiptProposal = { fields: Record<string, unknown>; sourceAmount?: number; sourceClaimed?: number; currency?: string; warnings: string[] };
+export type ExtractionContext = { selection: string; replace?: boolean; isReport?: boolean };
+export type ExtractionResult = { text: string; fields: Record<string, unknown>; method: string; pages: number; confidence?: number; currency?: string; sourceAmount?: number; sourceClaimed?: number; warnings?: string[]; receipts?: ReceiptProposal[] };
 const currencyPattern = /\b(?:CZK|EUR|USD|GBP|CHF|PLN|HUF|JPY|CNY|CAD|AUD|BRL)\b|Kč|[€$£¥]/gi;
 function currencies(text: string): string[] {
   return [...new Set((text.match(currencyPattern) || []).map(c => ({'KČ':'CZK','€':'EUR','$':'USD','£':'GBP','¥':'JPY'}[c.toUpperCase()] || c.toUpperCase())))];
@@ -82,7 +84,7 @@ export function parseDocumentText(text: string, mode: ExtractionMode = 'receipt'
   const supplierBlock = text.match(/(?:^|\n)[ \t]*(?:dodavatel|supplier|seller|vendor|sold by|from)[^\n]*\n([\s\S]*?)(?=\n[ \t]*(?:odběratel|bill to|buyer|customer|recipient)\b|$)/i)?.[0];
   const supplierIco = supplierBlock ? matchLine(supplierBlock, /(?:IČO|IČ|ICO|company (?:id|registration number))\s*:?\s*(\d[\d ]{6,12}\d)/i)?.replace(/\s/g,'') : !/(?:odběratel|bill to|buyer|customer)/i.test(text) ? ico : undefined;
   if (supplierIco?.length === 8) f.supplierIco = supplierIco;
-  const description = matchLine(text, /(?:^|\n)[ \t]*(?:popis(?: nákladu)?|předmět plnění|fakturujeme vám|účel|description|service description|purpose)\s*:?\s*([^\n\r]+)/i); if (description) f.description = description;
+  const description = matchLine(text, /(?:^|\n)[ \t]*(?:popis(?: nákladu| výdaje)?|předmět plnění|fakturujeme vám|účel|description|service description|purpose)\s*:?\s*([^\n\r]+)/i); if (description) f.description = description;
   const dateText = matchLine(text, /(?:^|\n)[ \t]*(?:datum (?:úhrady|platby)|uhrazeno(?: dne)?|payment date|date paid|paid on)\s*:?\s*([^\n\r]+)/i);
   if (dateText) { const date = parsePaymentDate(dateText); if (date) f.date = date; }
   if (/(?:způsob úhrady|forma úhrady|platba|payment method)\s*:?\s*(?:převod|bank|bezhotovost|wire|card|credit card|debit card)/i.test(text)) f.payment = 'bank';
@@ -91,9 +93,50 @@ export function parseDocumentText(text: string, mode: ExtractionMode = 'receipt'
   if (/(osvč|služb|nájem|ubytov|doprava|trenérsk|service|rent|accommodation|transport|coaching)/i.test(content)) f.category = 'services';
   else if (/(mzda|mzdy|odvod|plat zaměstnance|salary|wages|payroll)/i.test(content)) f.category = 'wages';
   else if (/(materiál|míč|hole|dres|material|equipment|jersey|balls)/i.test(content)) f.category = 'materials';
+  const recipient = matchLine(text, /(?:^|\n)[ \t]*(?:odběratel|objednatel|bill to|buyer|customer)\s*:?\s*([^\n\r]+)/i);
+  if (recipient) f.recipientName = recipient;
   return f;
 }
-export function documentProposal(text: string, mode: ExtractionMode = 'receipt') {
+export function parseSettlementReport(text: string): ReceiptProposal[] {
+  const plain = (v: string) => v.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+  if (!/vyuctovani dotace|settlement report|grant settlement/.test(plain(text)) || !/doklady vyuctovani|settlement (?:documents|receipts)/.test(plain(text))) return [];
+  const lines = text.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+  const reportOrganization=text.match(/Vyúčtování dotace\s*\n([^\n]+)\nSmlouva\s*:/i)?.[1]?.trim();
+  const heads: {index:number;number:string;supplier:string}[] = [];
+  for (const [index,line] of lines.entries()) {
+    const m=line.match(/^\d+[.)]\s+([A-Z0-9/._-]*\d[A-Z0-9/._-]*)\s*[·•|–—]\s*(.+)$/i);
+    if (m) heads.push({index,number:m[1],supplier:m[2].trim()});
+  }
+  return heads.map((head,index)=>{
+    const body = lines.slice(head.index+1,heads[index+1]?.index).filter(l=>!/^SFJ\s*[·/]|^\d+\s*\/\s*\d+$/.test(l));
+    const end=body.findIndex(l=>/prohlaseni prijemce|zaver kontroly|recipient declaration|review conclusion/.test(plain(l)));
+    if (end>=0) body.splice(end);
+    const block=body.join('\n'), fields:Record<string,unknown>={number:head.number,supplier:head.supplier};
+    if (body[0] && !/^(?:skupina|castky|uhrada|vyr)/.test(plain(body[0]))) fields.description=body[0];
+    const category=plain(matchLine(block,/^Skupina nákladů\s*:\s*(.+)$/im)||'');
+    if (/material/.test(category)) fields.category='materials'; else if (/sluzb/.test(category)) fields.category='services'; else if (/mzd/.test(category)) fields.category='wages';
+    const totals=block.match(/^Částky\s*:\s*Doklad\s+(.+?)\s*[·•|]\s*Uplatněno\s+(.+)$/im);
+    const rawAmount=totals?.[1]||'', rawClaimed=totals?.[2]||'';
+    const sourceAmount=parseCzechAmount(rawAmount), all=currencies(rawAmount), currency=all.length===1?all[0]:undefined;
+    if (sourceAmount && currency==='CZK') fields.amount=sourceAmount;
+    const claimed=parseCzechAmount(rawClaimed);
+    if (claimed && currencies(rawClaimed).length===1 && currencies(rawClaimed)[0]==='CZK') fields.claimed=claimed;
+    const payment=block.match(/^Úhrada\s*:\s*([^·•|]+)(?:[·•|]\s*(.+))?$/im);
+    if (payment) { const date=parsePaymentDate(payment[1].trim()); if (date) fields.date=date; const kind=plain(payment[2]||''); if (/bank|bezhotov|cashless|transfer/.test(kind)) fields.payment='bank'; else if (/hotov|cash/.test(kind)) fields.payment='cash'; }
+    const ico=matchLine(block,/^IČO dodavatele\s*:\s*(\d{8})/im); if (ico) fields.supplierIco=ico;
+    const recipient=matchLine(block,/^Odběratel\s*:\s*(.+)$/im);
+    if (recipient) { const [kind,...name]=recipient.split(/\s*[·•|]\s*/); const k=plain(kind); fields.recipientType=/bez uvedeni/.test(k)?'none':/jina firma/.test(k)?'other':/osoba/.test(k)?'person':'organization'; if (name.length) fields.recipientName=name.join(' · '); else if(fields.recipientType==='organization' && reportOrganization) fields.recipientName=reportOrganization; }
+    const comment=matchLine(block,/^Komentář organizace\s*:\s*(.+)$/im); if (comment) fields.comment=comment;
+    if (/VYŘAZENO Z VYÚČTOVÁNÍ/i.test(block)) fields.excluded=true;
+    const warnings:string[]=[];
+    if (!fields.date) warnings.push('Datum skutečné úhrady nebylo spolehlivě určeno. Doplňte je podle potvrzení platby.');
+    if (sourceAmount && !currency) warnings.push('Měna částky není jednoznačná. Ověřte originál.');
+    return {fields,sourceAmount,sourceClaimed:claimed,currency,warnings};
+  });
+}
+export function documentProposal(text: string, mode: ExtractionMode = 'receipt'): ReceiptProposal & {receipts?: ReceiptProposal[]} {
+  const receipts = mode === 'receipt' ? parseSettlementReport(text) : [];
+  if (receipts.length) return { ...receipts[0], receipts };
   const fields = parseDocumentText(text, mode), amount = documentTotal(text), warnings: string[] = [];
   if (mode === 'receipt' && !fields.date) warnings.push('Datum skutečné úhrady nebylo spolehlivě určeno. Doplňte je podle potvrzení platby; datum vystavení ani splatnosti nestačí.');
   if (amount.sourceAmount && !amount.currency) warnings.push('Měna celkové částky není jednoznačná. Ověřte ji podle originálu.');
@@ -157,13 +200,15 @@ export async function extractDocument(file: File, mode: ExtractionMode, progress
         pdfTask = pdfjs.getDocument({ data: new Uint8Array(bytes), useSystemFonts: true });
         const pdf = await step(pdfTask.promise);
         if (pdf.numPages > 10) throw new Error('OCR podporuje nejvýše 10 stran najednou. Nahrajte relevantní část dokumentu.');
-        let text = '', confidence = 0;
+        let text = '', embedded = '', confidence = 0;
         for (let i = 1; i <= pdf.numPages; i++) {
           checkAbort(active); pageLabel = `Strana ${i}/${pdf.numPages} · `;
           report(`${pageLabel}Připravuji obrázek…`);
           const page = await step(pdf.getPage(i));
           const canvas = document.createElement('canvas');
           try {
+            const content = await step(page.getTextContent());
+            embedded += content.items.map(item => 'str' in item ? item.str + (item.hasEOL ? '\n' : ' ') : '').join('') + '\n';
             const original = page.getViewport({ scale: 1 });
             const size = rasterSize(original.width, original.height, 2);
             const viewport = page.getViewport({ scale: size.scale });
@@ -177,7 +222,8 @@ export async function extractDocument(file: File, mode: ExtractionMode, progress
           } finally { canvas.width = 0; canvas.height = 0; page.cleanup(); }
         }
         if (!text.trim()) throw new Error('V dokumentu nebyl rozpoznán text. Zkuste ostřejší sken.');
-        return { text, confidence: confidence / pdf.numPages, ...documentProposal(text, mode), method: 'PDF · OCR', pages: pdf.numPages };
+        const readable = embedded.trim().length >= 30 ? embedded : text;
+        return { text: readable, confidence: confidence / pdf.numPages, ...documentProposal(readable, mode), method: embedded.trim().length >= 30 ? 'PDF · OCR + text' : 'PDF · OCR', pages: pdf.numPages };
       }
       report('Připravuji obrázek…');
       const decoding = createImageBitmap(file).then(bitmap => {
