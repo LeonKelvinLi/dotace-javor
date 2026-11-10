@@ -24,3 +24,7 @@ Recorded SHA-256 checksums identify the downloaded bytes even if the upstream br
 The upstream worker notice identifies additional bundled components: the browser Buffer module (MIT), ieee754 (BSD-3-Clause), regenerator-runtime (MIT), and zlib.js (MIT). Preserve the supplied notice file when copying or updating the worker. Upstream copyright holders retain their rights; no endorsement of this application is implied.
 
 When upgrading, copy worker/core files from the exact newly installed packages, retain their license/notice files, update this record and verify Czech/English OCR with a fictional document. Do not substitute a live CDN dependency silently. The browser extraction path uses these same-origin assets; enabling the optional server AI endpoints is a separate data flow described in [HANDOVER.md](./HANDOVER.md).
+
+## Direct PDF report
+
+PDF-Lib 1.17.1 and @pdf-lib/fontkit 1.1.1 are installed npm packages (MIT licenses). PDF-Lib’s license and Fontkit’s supplied README/license notice are copied under `public/licenses/` (the Fontkit npm package does not supply a separate license file). Noto Sans Regular is vendored from [the official Noto repository](https://github.com/notofonts/noto-fonts/blob/main/hinted/ttf/NotoSans/NotoSans-Regular.ttf) at `public/fonts/NotoSans-Regular.ttf`, downloaded 10 November 2026. Its SIL Open Font License 1.1 is retained in `public/licenses/NotoSans-OFL.txt`. The font is embedded into generated reports to preserve Czech text.

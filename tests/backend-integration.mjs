@@ -194,6 +194,25 @@ try {
     sqlite.prepare("UPDATE invitations SET expires_at='2000-01-01T00:00:00Z' WHERE email=?").run('expired@example.test');
     await rejectStatus(() => server.acceptInvite({ ...invited, user: user('expired', 'expired@example.test') }, expired.inviteUrl.split('=')[1]), 400);
   });
+  await check('only SFJ can invite another federation reviewer and existing organization accounts cannot escalate', async () => {
+    await rejectStatus(() => server.command(organization, 'invite', { organizationId: '', email: 'outsider@example.test', role: 'federation' }), 403);
+    await rejectStatus(() => server.command(member, 'invite', { organizationId: '', email: 'outsider@example.test', role: 'federation' }), 403);
+    await rejectStatus(() => server.command(member, 'invite', { organizationId: 'org-haj', email: 'outsider@example.test', role: 'member' }), 403);
+    await rejectStatus(() => server.command(federation, 'invite', { organizationId: 'org-haj', email: 'staff@example.test', role: 'federation' }), 400);
+    await rejectStatus(() => server.command(federation, 'invite', { organizationId: '', email: 'empty@example.test', role: 'org_admin' }), 400);
+    const staff = await server.command(federation, 'invite', { organizationId: '', email: 'staff@example.test', role: 'federation' });
+    const incoming = { ...federation, user: user('staff-two', 'staff@example.test'), member: null };
+    await server.acceptInvite(incoming, staff.inviteUrl.split('=')[1]);
+    signedInUser = incoming.user;
+    const reviewer = await server.requireActor();
+    assert.equal(reviewer.member.role, 'federation');
+    assert.equal(reviewer.member.organizationId, '');
+    assert.equal((await server.readState(reviewer)).organizations.length, 3);
+    const forbiddenUpgrade = await server.command(federation, 'invite', { organizationId: '', email: organization.user.email, role: 'federation' });
+    await rejectStatus(() => server.acceptInvite(organization, forbiddenUpgrade.inviteUrl.split('=')[1]), 409);
+    assert.equal(organization.member.role, 'org_admin');
+    signedInUser = federation.user;
+  });
   console.log(`\nPASS ${passed.length} backend integration scenarios (actual commands + SQLite; no network or external accounts).`);
 } finally {
   sqlite.close();

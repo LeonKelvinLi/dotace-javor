@@ -1,5 +1,9 @@
 # Dotace · Sportovní federace Javor
 
+[Open the deployed app](https://dotace-javor-pilot.splk6.chatgpt.site) · [Source repository](https://github.com/LeonKelvinLi/dotace-javor)
+
+The application and repository are private to the owner; reviewer access must be arranged separately.
+
 A working Czech grant-settlement application built from the fictional client handoff. The original sales prototype and exercise packet are preserved in the parent directory; this folder is the implemented application.
 
 Organizations prepare receipts against individual contracts. Formal checks require supporting originals and explanations for exceptions. A lead administrator submits a declaration; federation staff review items, request clarification, reject with reasons and conclude the settlement with a grant reduction. The original documents and the complete decision trail remain attached to their contract.
@@ -32,7 +36,7 @@ npm run build
 - Editable extraction proposals, all simultaneous review findings, separate organization and federation decisions.
 - Partial claims and personal-recipient explanations; other-company recipient blocking; no invented cash threshold.
 - Submitted-data locks, optimistic version conflicts, supplement request/reply history and immutable application audit events.
-- Bulk acceptance, random selection for spot checks, final conclusion/reduction, three cost groups, CSV export and print / Save as PDF.
+- Bulk acceptance, random selection for spot checks, final conclusion/reduction, three cost groups, CSV export and a direct, paginated PDF report download with Czech typography.
 - Expiring one-use invitation links; feedback; live ARES lookup on explicit request.
 - Server-side OpenAI integration for document extraction and a source-grounded adviser when a project key is configured. Without that key the app explicitly offers browser OCR and a limited document guide.
 

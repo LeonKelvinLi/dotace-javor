@@ -1496,13 +1496,24 @@ export default function DotaceApp() {
                     <p>Profily příjemců, jejich smlouvy a přístupy členů.</p>
                   </div>
                   {federation && !preview && (
-                    <button
-                      className="button primary"
-                      onClick={() => setModal({ type: "organization" })}
-                    >
-                      <Plus size={17} />
-                      Přidat organizaci
-                    </button>
+                    <div className="heading-actions">
+                      <button
+                        className="button secondary"
+                        onClick={() =>
+                          setModal({ type: "invite", organizationId: "" })
+                        }
+                      >
+                        <Users size={16} />
+                        Pozvat správce SFJ
+                      </button>
+                      <button
+                        className="button primary"
+                        onClick={() => setModal({ type: "organization" })}
+                      >
+                        <Plus size={17} />
+                        Přidat organizaci
+                      </button>
+                    </div>
                   )}
                 </div>
                 <div className="organization-grid">
@@ -1599,7 +1610,9 @@ export default function DotaceApp() {
                       : modal.type === "return"
                         ? "Vrátit vyúčtování"
                         : modal.type === "invite"
-                          ? "Pozvat člena organizace"
+                          ? modal.organizationId
+                            ? "Pozvat člena organizace"
+                            : "Pozvat správce SFJ"
                           : modal.type === "adviser"
                             ? "Rádce k vyúčtování"
                             : "Návrh na zlepšení"
@@ -3019,6 +3032,29 @@ function Summary({
   state: AppState;
   exportCsv: () => void;
 }) {
+  const [downloading, setDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState("");
+  const downloadPdf = async () => {
+    setDownloading(true);
+    setDownloadError("");
+    try {
+      const { downloadSettlementPdf } = await import("@/lib/report-pdf");
+      await downloadSettlementPdf({
+        contract,
+        organization,
+        items,
+        files: state.files.filter((file) => file.contractId === contract.id),
+      });
+    } catch (error) {
+      setDownloadError(
+        error instanceof Error
+          ? error.message
+          : "PDF se nepodařilo vytvořit. Zkuste to znovu.",
+      );
+    } finally {
+      setDownloading(false);
+    }
+  };
   const rejected =
     items
       .filter((i) => !i.excluded && i.sfjDecision === "rejected")
@@ -3028,19 +3064,32 @@ function Summary({
       <div className="summary-toolbar no-print">
         <div>
           <h2>Souhrn vyúčtování</h2>
-          <p>Podklad pro předání, archivaci a tisk do PDF.</p>
+          <p>Podklad pro předání, archivaci a stažení PDF.</p>
         </div>
         <div className="row-actions">
           <button className="button secondary" onClick={exportCsv}>
             <Download size={16} />
             CSV export
           </button>
-          <button className="button primary" onClick={() => window.print()}>
-            <Printer size={16} />
-            Tisk / uložit PDF
+          <button
+            className="button primary"
+            disabled={downloading}
+            onClick={() => void downloadPdf()}
+          >
+            {downloading ? (
+              <Loader2 size={16} className="spin" />
+            ) : (
+              <Download size={16} />
+            )}
+            {downloading ? "Připravuji PDF…" : "Stáhnout PDF"}
           </button>
         </div>
       </div>
+      {downloadError && (
+        <div className="no-print">
+          <FormError error={downloadError} />
+        </div>
+      )}
       <section className="report panel">
         <div className="report-header">
           <div className="report-brand">
@@ -3414,7 +3463,10 @@ function InviteForm({
   onInvite: (email: string, role: string) => Promise<{ inviteUrl?: string }>;
 }) {
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState(federation ? "org_admin" : "member");
+  const sfjInvite = federation && !organizationId;
+  const [role, setRole] = useState(
+    sfjInvite ? "federation" : federation ? "org_admin" : "member",
+  );
   const [link, setLink] = useState("");
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
@@ -3446,15 +3498,28 @@ function InviteForm({
         />
       </Field>
       <Field label="Oprávnění">
-        <select value={role} onChange={(e) => setRole(e.target.value)}>
-          {federation && (
-            <option value="org_admin">
-              Správce organizace · odesílá vyúčtování
-            </option>
-          )}
-          <option value="member">Člen · připravuje doklady</option>
-        </select>
+        {sfjInvite ? (
+          <input readOnly value="Správce SFJ · všechny organizace" />
+        ) : (
+          <select value={role} onChange={(e) => setRole(e.target.value)}>
+            {federation && (
+              <option value="org_admin">
+                Správce organizace · odesílá vyúčtování
+              </option>
+            )}
+            <option value="member">Člen · připravuje doklady</option>
+          </select>
+        )}
       </Field>
+      {sfjInvite && (
+        <div className="notice warning">
+          <ShieldCheck size={17} />
+          <span>
+            Správce SFJ získá stejné oprávnění ke všem organizacím, smlouvám i
+            rozhodnutím jako vy.
+          </span>
+        </div>
+      )}
       <div className="inline-banner">
         <Users size={17} />
         Pozvánka se automaticky neposílá e-mailem. Člen také potřebuje přístup k
@@ -3485,7 +3550,10 @@ function InviteForm({
         </div>
       )}
       <div className="form-footer">
-        <button className="button primary" disabled={busy || !organizationId}>
+        <button
+          className="button primary"
+          disabled={busy || (!organizationId && !sfjInvite)}
+        >
           <Plus size={16} />
           Vytvořit pozvánku
         </button>

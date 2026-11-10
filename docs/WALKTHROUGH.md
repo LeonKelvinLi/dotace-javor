@@ -44,7 +44,7 @@ As a federation administrator, open the submitted contract. Filter items with co
 
 As the organization, answer the supplement request with an explanation/corrected evidence and resubmit through the allowed flow. As federation, verify the response remains in history, make the remaining decisions, and enter the final conclusion and reduction. Review the suggested rejected-item total before confirming the amount.
 
-Open the printable report and use the browser's **Print / Save as PDF**. Check organization, contract, three cost groups, claimed amounts, grant, reduction and final conclusion. This is a new report design; the original Excel template was not supplied.
+Open the summary and click **Stáhnout PDF** to download the A4 report. Open the downloaded file to print it. Check organization, contract, three cost groups, claimed amounts, grant, reduction and final conclusion. This is a new report design; the original Excel template was not supplied.
 
 ## Acceptance checklist
 

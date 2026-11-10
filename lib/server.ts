@@ -173,7 +173,16 @@ export async function command(ctx:ServerContext,action:string,raw:unknown):Promi
     await mutate(ctx,ctx.db.prepare("UPDATE items SET data=?,version=? WHERE id=? AND version=? AND EXISTS (SELECT 1 FROM contracts WHERE id=? AND status='submitted')").bind(json(updated),updated.version,i.id,i.version,c.id),auditStatement(ctx,'item.reply',answer,c.organizationId,c.id,i.id,true));return {};
   }
   if(action==='invite'){
-    const organizationId=text(p.organizationId,'Organizace',100,true);manager(ctx,organizationId);if(!await one(ctx.db,'organizations',organizationId))throw new ApiError(404,'Organizace neexistuje.');const email=text(p.email,'E-mail',254,true).toLowerCase();if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))throw new ApiError(400,'Zadejte platný e-mail pozvaného.');const role=choice(p.role,['org_admin','member'],'Role');const token=Array.from(crypto.getRandomValues(new Uint8Array(32))).map(b=>b.toString(16).padStart(2,'0')).join('');const expiresAt=new Date(Date.now()+7*86400000).toISOString();
+    const role=choice(p.role,['federation','org_admin','member'],'Role');
+    const organizationId=text(p.organizationId??'','Organizace',100,role!=='federation');
+    if(role==='federation'){
+      federation(ctx);
+      if(organizationId)throw new ApiError(400,'Pracovník SFJ má přístup federace bez přiřazení k jedné organizaci.');
+    }else{
+      manager(ctx,organizationId);
+      if(!await one(ctx.db,'organizations',organizationId))throw new ApiError(404,'Organizace neexistuje.');
+    }
+    const email=text(p.email,'E-mail',254,true).toLowerCase();if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))throw new ApiError(400,'Zadejte platný e-mail pozvaného.');const token=Array.from(crypto.getRandomValues(new Uint8Array(32))).map(b=>b.toString(16).padStart(2,'0')).join('');const expiresAt=new Date(Date.now()+7*86400000).toISOString();
     await ctx.db.batch([ctx.db.prepare('INSERT INTO invitations (id,organization_id,email,role,token_hash,expires_at,used_by,created_by) VALUES (?,?,?,?,?,?,NULL,?)').bind(id('invite'),organizationId,email,role,await digest(new TextEncoder().encode(token)),expiresAt,ctx.user.userId),auditStatement(ctx,'member.invited',`Připraven jednorázový odkaz pro ${email} · ${role}. E-mail neodeslán.`,organizationId)]);return {inviteUrl:`/?invite=${token}`,expiresAt};
   }
   if(action==='feedback'){
@@ -183,8 +192,14 @@ export async function command(ctx:ServerContext,action:string,raw:unknown):Promi
 }
 export async function acceptInvite(ctx:IdentityContext,token:unknown){
   const hash=await digest(new TextEncoder().encode(text(token,'Pozvánka',128,true)));
-  const invite=await ctx.db.prepare('SELECT * FROM invitations WHERE token_hash=?').bind(hash).first<{id:string;organization_id:string;email:string;role:'org_admin'|'member';expires_at:string;used_by:string|null}>();
+  const invite=await ctx.db.prepare('SELECT * FROM invitations WHERE token_hash=?').bind(hash).first<{id:string;organization_id:string;email:string;role:'federation'|'org_admin'|'member';expires_at:string;used_by:string|null}>();
   if(!invite||invite.used_by||invite.expires_at<now())throw new ApiError(400,'Pozvánka už není platná. Požádejte o nový odkaz.');if(invite.email!==ctx.user.email.toLowerCase())throw new ApiError(403,`Pozvánka je určena pro ${invite.email}. Přihlaste se tímto účtem.`);if(ctx.member)throw new ApiError(409,'Tento účet už má členství. Změnu organizace musí vyřešit správce.');
+  // Only the role stored by the authorized invitation creator is accepted;
+  // request payloads cannot select or upgrade the role during redemption.
+  if(!['federation','org_admin','member'].includes(invite.role))throw new ApiError(400,'Pozvánka obsahuje neplatnou roli. Požádejte správce o nový odkaz.');
+  if(invite.role==='federation'){
+    if(invite.organization_id)throw new ApiError(400,'Pozvánka pracovníka SFJ obsahuje neplatné přiřazení organizace.');
+  }else if(!invite.organization_id||!await one(ctx.db,'organizations',invite.organization_id))throw new ApiError(400,'Organizace v pozvánce už není dostupná. Požádejte správce o nový odkaz.');
   const member:Membership={id:id('member'),userId:ctx.user.userId,email:ctx.user.email.toLowerCase(),name:ctx.user.displayName,role:invite.role,organizationId:invite.organization_id};
   const result=await ctx.db.batch([
     ctx.db.prepare('UPDATE invitations SET used_by=? WHERE id=? AND used_by IS NULL AND expires_at>=?').bind(ctx.user.userId,invite.id,now()),

@@ -4,15 +4,15 @@ This is an independently implemented developer exercise for the fictional **Spor
 
 ## Evidence and precedence
 
-The original packet is beside this application at `../context/` (paths below are relative to the application root). Its sales prototype simulates login, server operations and AI. A prototype screen or sample number is not an agreed rule or an implemented backend.
+The original packet is beside this application at `../../context/` (paths below are relative to the application root). Its sales prototype simulates login, server operations and AI. A prototype screen or sample number is not an agreed rule or an implemented backend.
 
 Read the original conversations together with the September 30 change note. Later explicit decisions supersede earlier proposals. The strongest handoff evidence is the client's October 1 acceptance in [WhatsApp, lines 211–215](../../context/whatsapp.txt), following the revised prototype and change note. No prototype deployment in that history proves this implementation was deployed.
 
 | Requirement | Evidence | Implementation decision |
 | --- | --- | --- |
-| Organization → contract → settlement → expense items | `../context/2026-09-29-hovor.txt`, lines 115–121, 155–171 | Each contract owns its settlement; an organization can hold several contracts and programs. |
-| SFJ administration and organization access | `../context/2026-09-17-hovor.txt`, lines 78–108; September 29, lines 19–25 | Federation administrators manage all organizations. Organization administrators invite their own members. Ordinary members cannot administer access. All operations enforce membership on the server. |
-| Create organizations, upload already signed contracts and invite members from organization detail | `../context/2026-09-30-interni-hovor.txt`, lines 108–133; [V2.3 note](../../context/prilohy/2026-09-30-zmeny-prototypu-v2-3.md), lines 17–19 | Contracts are signed outside this application. Store organization contact/bank data and multiple representatives; retain source attachments. An explicit IČO lookup retrieves the name and address from official ARES; it does not fabricate missing contacts. |
+| Organization → contract → settlement → expense items | `../../context/2026-09-29-hovor.txt`, lines 115–121, 155–171 | Each contract owns its settlement; an organization can hold several contracts and programs. |
+| SFJ administration and organization access | `../../context/2026-09-17-hovor.txt`, lines 78–108; September 29, lines 19–25 | Federation administrators manage all organizations. Organization administrators invite their own members. Ordinary members cannot administer access. All operations enforce membership on the server. |
+| Create organizations, upload already signed contracts and invite members from organization detail | `../../context/2026-09-30-interni-hovor.txt`, lines 108–133; [V2.3 note](../../context/prilohy/2026-09-30-zmeny-prototypu-v2-3.md), lines 17–19 | Contracts are signed outside this application. Store organization contact/bank data and multiple representatives; retain source attachments. An explicit IČO lookup retrieves the name and address from official ARES; it does not fabricate missing contacts. |
 | Upload PDF/photo documents | September 30 call, lines 157–180; V2.3, line 9 | Accounting Excel/CSV import is excluded. CSV export is retained. |
 | Extract, correct, review and submit | September 29 call, lines 123–145; September 17, lines 149–168 | Browser-side PDF text extraction/OCR and labelled-field suggestions work without an API key. The implemented optional OpenAI extraction endpoint produces structured editable suggestions once configured. Users confirm every item; automated output is not legal eligibility certification. |
 | Three cost groups | September 30 call, lines 62–68; V2.3, line 11 | Materials; services including self-employed contractors (OSVČ); wages including contributions. Do not count contributions twice or classify OSVČ as wages. |
@@ -21,7 +21,7 @@ Read the original conversations together with the September 30 change note. Late
 | Request supplements and retain history | September 30, lines 11–16; V2.3, line 23 | Keep federation request, organization response and decision history with the item. Rejection requires a reason. |
 | Review filters, bulk acceptance and sample checks | September 29, lines 25–26; V2.3, lines 12, 19–20, 29 | Compact contracts with year/program/organization filters; item comment and attachment filters; full expense description. Human reviewers remain responsible for decisions. |
 | Contract documents and source references | September 29, lines 136–145; September 30, lines 81–94; V2.3, line 22 | Attach signed contract, instructions, decision and amendments to the contract. A source excerpt is evidence for a human, not an automatically binding rule. |
-| Report and final decision | September 30, lines 47–68; V2.3, line 21 | CSV item export and browser-printable report suitable for Save as PDF. Report includes organization, contract, three groups, grant, items, reduction and conclusion. SFJ enters the final conclusion and reduction, with rejected-item total suggested. |
+| Report and final decision | September 30, lines 47–68; V2.3, line 21 | CSV item export and a directly downloadable PDF report suitable for printing. Report includes organization, contract, three groups, grant, items, reduction and conclusion. SFJ enters the final conclusion and reduction, with rejected-item total suggested. |
 | Beneficiary declaration | September 30, lines 228–237; V2.3, line 28 | Organization confirms factual truth and accounting records; SFJ conducts formal review. Recorded declaration does not certify actual use of funds. |
 | Adviser and suggestions | September 17, lines 192–199; September 30, lines 213–217; V2.3, lines 24, 29 | The implemented optional AI adviser receives the selected contract and its uploaded policy sources. Without a key, the visibly labelled document guide retrieves available reference text without pretending to be an LLM. Suggestions and final human review remain separate. |
 
@@ -61,10 +61,10 @@ The cost extracts contain examples of salary/service caps and assets; they are d
 
 This records the fictional sales handoff, not new commitments or payments by the user:
 
-- September 10 reservation: **25,000 Kč/month**, per `../context/obchodni-udalosti.txt`, lines 4–5.
+- September 10 reservation: **25,000 Kč/month**, per `../../context/obchodni-udalosti.txt`, lines 4–5.
 - September 29: intermediate 48,000 Kč option discussed, then an intensive first month. The system records the old invoice voided and **Ultra at 89,000 Kč/month** chosen, lines 7–11.
-- October 1: client says the invoice is in internal approval and work may begin, `../context/whatsapp.txt`, lines 211–215. This is **not proof of payment**.
-- October 1 supplier email promises a first working version by **October 15, 2026**, with the **89,000 Kč first-period invoice due October 2**, `../context/e-maily/2026-10-01-15.txt`, lines 7–13. Work starts before payment as an explicit exception.
+- October 1: client says the invoice is in internal approval and work may begin, `../../context/whatsapp.txt`, lines 211–215. This is **not proof of payment**.
+- October 1 supplier email promises a first working version by **October 15, 2026**, with the **89,000 Kč first-period invoice due October 2**, `../../context/e-maily/2026-10-01-15.txt`, lines 7–13. Work starts before payment as an explicit exception.
 - Client aims at a pilot with several organizations in **November** (September 30 call, line 238), use during December and January annual settlements (September 29, lines 74–88).
 
 The exercise README separately asks the candidate and interviewer to agree a time allowance and handoff date. No such call or later agreement is supplied. The implementation records its actual verification and handoff state rather than inventing one.

@@ -49,7 +49,7 @@ npm run lint
 npm run build
 ```
 
-Verified on November 10, 2026: **14 model/extraction tests** pass with `npm test`; **12 backend integration scenarios** pass with `node tests/backend-integration.mjs`. Backend integration runs the actual application commands and production SQL against Node SQLite with D1/R2 adapters; it does not test a deployed Worker, network provider or external account. Build, UI and hosted results are recorded separately in [VERIFICATION.md](./VERIFICATION.md). The walkthrough checklist is a review aid, not an assertion that every case passed.
+Verified on November 10, 2026: **14 model/extraction tests** pass with `npm test`; **13 backend integration scenarios** pass with `node tests/backend-integration.mjs`. Backend integration runs the actual application commands and production SQL against Node SQLite with D1/R2 adapters; it does not test a deployed Worker, network provider or external account. Build, UI and hosted results are recorded separately in [VERIFICATION.md](./VERIFICATION.md). The walkthrough checklist is a review aid, not an assertion that every case passed.
 
 ## Optional AI configuration
 
@@ -76,7 +76,7 @@ Creating an invitation does not change the Sites sharing policy. A valid applica
 
 Keep invitation links out of source control, screenshots and public reports. They are bearer credentials until accepted or expired. Validate role and organization on the server when creating and accepting them. An ordinary member must not be able to create federation access or invite to another organization.
 
-Organization administrator/member accounts are limited to their organization. Federation accounts can review all organizations. Server checks must cover reads, mutations, attachments, exports and reports; hidden UI controls alone are not authorization.
+Organization administrator/member accounts are limited to their organization. Federation accounts can review all organizations. An existing federation administrator can create a separate **Pozvat správce SFJ** invitation for another federation reviewer; organization users cannot create or accept an upgrade to that role. Server checks must cover reads, mutations, attachments, exports and reports; hidden UI controls alone are not authorization.
 
 ## Deploy and transfer
 
@@ -96,7 +96,7 @@ For an external hosting transfer, reproduce the Worker runtime, protected identi
 - Do not alter submitted/approved settlements through ordinary organization editing. Supplement requests and resubmission must follow the documented state transition.
 - Store only supported PDFs/photos and enforce server-side type/size checks. Downloads require current membership. Original filenames are display metadata, not storage paths.
 - Seed fixtures, sample documents and guide responses must remain visibly fictional or limited. ARES/provider failure and OCR limitations must not be hidden behind fabricated results. Browser reading supports files up to 10 MB, up to 100 PDF pages and up to 10 scanned PDF pages per extraction; OCR quality and browser performance vary.
-- Export CSV with correct quoting and spreadsheet-formula mitigation. The printable report uses the browser's print dialog / Save as PDF and is an original report, not the missing legacy Excel form.
+- Export CSV with correct quoting and spreadsheet-formula mitigation. The report downloads a paginated A4 PDF directly using PDF-Lib and an embedded Noto Sans font. It can be printed from a PDF viewer and is an original report, not the missing legacy Excel form.
 - Dependencies are pinned by `package-lock.json`; update in a branch and rerun build, type checks and workflow tests.
 
 See [THIRD-PARTY.md](./THIRD-PARTY.md) for copied PDF/OCR runtime and trained-model provenance and license notices.
