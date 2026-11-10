@@ -44,6 +44,7 @@ import {
   X,
 } from "lucide-react";
 import Extraction from "@/components/dotace-extract";
+import { parsePaymentDate } from "@/lib/extraction";
 import DocumentPreview from "@/components/dotace-document";
 import {
   AppState,
@@ -2554,10 +2555,12 @@ function ItemForm({
               </Field>
               <Field label="Datum úhrady">
                 <input
-                  type="date"
+                  type="text"
                   required
+                  placeholder="RRRR-MM-DD nebo D. M. RRRR"
                   value={draft.date}
                   onChange={(e) => change("date", e.target.value)}
+                  onBlur={(e) => { const parsed = parsePaymentDate(e.target.value); if (parsed) change("date", parsed); }}
                 />
               </Field>
               <Field label="Dodavatel">
