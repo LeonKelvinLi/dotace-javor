@@ -2622,7 +2622,7 @@ function ItemForm({
                   value={draft.payment}
                   onChange={(e) => change("payment", e.target.value)}
                 >
-                  <option value="bank">Banka</option>
+                  <option value="bank">Bezhotovostní platba</option>
                   <option value="cash">Hotovost</option>
                 </select>
               </Field>
