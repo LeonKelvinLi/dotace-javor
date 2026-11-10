@@ -336,7 +336,7 @@ export default function DotaceApp() {
         "Číslo dokladu",
         "Dodavatel",
         "IČO",
-        "Popis nákladu",
+        "Popis výdaje",
         "Skupina",
         "Částka dokladu Kč",
         "Uplatněno Kč",
@@ -361,7 +361,7 @@ export default function DotaceApp() {
         item.amount.toFixed(2).replace(".", ","),
         item.claimed.toFixed(2).replace(".", ","),
         item.date,
-        item.payment === "bank" ? "Banka" : "Hotovost",
+        item.payment === "bank" ? "Bezhotovostní platba" : "Hotovost",
         orgNames[item.orgReview],
         sfjNames[item.sfjDecision],
         item.comment,
@@ -998,7 +998,7 @@ export default function DotaceApp() {
                               </span>
                               <small className="small-muted">
                                 {date(item.date)} ·{" "}
-                                {item.payment === "bank" ? "Banka" : "Hotovost"}
+                                {item.payment === "bank" ? "Bezhotovostní platba" : "Hotovost"}
                               </small>
                             </td>
                             <td className="numeric">
@@ -2567,7 +2567,7 @@ function ItemForm({
                 />
               </Field>
             </div>
-            <Field label="Popis nákladu">
+            <Field label="Popis výdaje">
               <textarea
                 required
                 rows={2}
@@ -3188,7 +3188,7 @@ function Summary({
                   <td>{categoryLabels[i.category]}</td>
                   <td>
                     {date(i.date)}
-                    <small>{i.payment === "bank" ? "Banka" : "Hotovost"}</small>
+                    <small>{i.payment === "bank" ? "Bezhotovostní platba" : "Hotovost"}</small>
                   </td>
                   <td className="numeric">{money(i.claimed)}</td>
                   <td>{i.excluded ? "Vyřazeno" : sfjNames[i.sfjDecision]}</td>

@@ -340,7 +340,7 @@ export async function makeSettlementPdf(
         color: muted,
         after: 5,
       });
-    paragraph(item.description || "Popis nákladu neuveden.", {
+    paragraph(item.description || "Popis výdaje neuveden.", {
       size: 9,
       after: 6,
     });
@@ -351,7 +351,7 @@ export async function makeSettlementPdf(
     );
     detail(
       "Úhrada",
-      `${reportDate(item.date)} · ${item.payment === "bank" ? "Banka" : "Hotovost"}`,
+      `${reportDate(item.date)} · ${item.payment === "bank" ? "Bezhotovostní platba" : "Hotovost"}`,
     );
     if (item.supplierIco) detail("IČO dodavatele", item.supplierIco);
     detail(
