@@ -53,3 +53,17 @@ Deployed on 10 November 2026 to https://dotace-javor-99x6.onrender.com in the co
 - `npm run test:render` passed five hosting scenarios: anonymous/forged identity rejection, invite-only scoped registration, signed-in identity spoof rejection, persistent records/accounts/sessions/original bytes across process restart, and logout invalidation. Restart persistence was tested locally against the actual built Worker and the same gateway; a production restart was not forced.
 
 Admin email is `admin@javor.example`; retrieve the generated password from the new service's Render Environment page. No production credential is stored in this repository. Multi-user live Chrome sign-up remains unverified; invite acceptance and isolation pass in the hosting and backend tests. OpenAI is still unconfigured, so live AI extraction/adviser behavior is pending. The Render database is independent from the earlier Sites deployment.
+
+## Additional document checks
+
+On 10 November 2026, Chrome tested additional fictional PDFs against the Render service:
+
+- Two-page Czech invoice with VAT and the final total on page two: both pages read, nine fields proposed, correct 12,100 Kč total and 20 October payment date (rather than the due date).
+- Image-only scanned PDF: PDF rendering plus Tesseract OCR ran, nine fields proposed, correct 1,234.56 amount. OCR read the supplier suffix as `s.r.0.`; proposals require human review.
+- General invitation letter: text was readable, but the initial parser mistook narrative words following “faktura” for a number. Commit `6622bbb` now requires a digit in an extracted document number.
+- English/euro invoice: text and supplier were readable; other English fields remained blank for manual entry. This does not establish broad multilingual extraction support.
+- Non-PDF content named `.pdf`: rejected by the server with an explicit supported-format error.
+
+An additional regression found that a Czech-labelled euro total could be proposed as CZK. Commit `6622bbb` suppresses automatic amounts whenever an explicit foreign-currency marker is present and shows a warning to supply a documented CZK conversion manually. Unit regressions cover narrative text and eight foreign-currency markers. `npm test` now passes 16 checks, backend integration passes 13 scenarios, type checking and the production build pass. The samples are controlled fictional fixtures, not an independent real-world document corpus; Word/Excel input and automatic general English field extraction are not claimed. Live AI remains unconfigured.
+
+Render deploy `dep-dbpmurjncjis73ejkeh0` is live at `6622bbbb2555d0235ba18b2dfcdcb71714ceca48`. Actual Chrome regressions passed after deployment: the general letter returned readable text with no invoice fields or apply button; the Czech/euro invoice proposed six non-amount fields, displayed the explicit currency warning and left both amount inputs blank after applying. The signed-in session, existing records and approved settlement survived the deployment. A dynamic asset import failed once during the service transition; the app's Reload action recovered. This is a single-instance disk-backed service with brief deployment interruption. Local evidence is in ignored `outputs/document-qa/`. No additional expense rows or settlements were saved during these document-only tests; fictional uploaded files remain in pilot storage.
