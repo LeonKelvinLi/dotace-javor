@@ -51,19 +51,20 @@ async function one<T>(db:D1Database,table:string,key:string):Promise<T|null>{
   const row=await db.prepare(`SELECT data FROM ${table} WHERE id=?`).bind(key).first<{data:string}>();return row?JSON.parse(row.data) as T:null;
 }
 export async function identity():Promise<IdentityContext>{
-  const user=await getChatGPTUser();if(!user)throw new ApiError(401,'Přihlaste se účtem ChatGPT.');
+  const user=await getChatGPTUser();if(!user)throw new ApiError(401,'Přihlaste se. / Please sign in.');
   if(!env.DB||!env.BUCKET)throw new ApiError(503,'Databáze nebo úložiště není připojené. Správce musí povolit vazby DB a BUCKET.');
   const db=env.DB,bucket=env.BUCKET;
   const member:Membership={id:id('member'),userId:user.userId,email:user.email.toLowerCase(),name:user.displayName,role:'federation',organizationId:''};
   // The Sites deployment is owner-private. A singleton lock elects exactly one
   // owner even when two first requests arrive together; later users need invites.
-  await db.batch([
+  if(env.NATIVE_RUNTIME!=='true'||env.DEMO_MODE==='true'||user.email.toLowerCase()===env.OWNER_EMAIL?.toLowerCase())await db.batch([
     db.prepare("INSERT OR IGNORE INTO bootstrap (id,owner_id,seeded) VALUES ('owner',?,0)").bind(user.userId),
     db.prepare("INSERT OR IGNORE INTO memberships (id,user_id,organization_id,role,email,data) SELECT ?,?,?,?,?,? WHERE EXISTS (SELECT 1 FROM bootstrap WHERE id='owner' AND owner_id=?)").bind(member.id,member.userId,'',member.role,member.email,json(member),user.userId),
   ]);
   const row=await db.prepare('SELECT data FROM memberships WHERE user_id=?').bind(user.userId).first<{data:string}>();
   const current=row?JSON.parse(row.data) as Membership:null;
-  if(current?.role==='federation')await seedDemo(db,bucket);
+  if(current?.disabled)throw new ApiError(403,'Váš přístup byl odebrán. Kontaktujte správce. / Your access was removed. Contact your administrator.');
+  if(current?.role==='federation'&&(env.NATIVE_RUNTIME!=='true'||env.SEED_DEMO==='true'||env.DEMO_MODE==='true'))await seedDemo(db,bucket);
   return {db,bucket,user,member:current};
 }
 export async function requireActor():Promise<ServerContext>{
@@ -94,7 +95,7 @@ export async function readState(ctx:ServerContext):Promise<AppState>{
     all<Contract>(ctx.db,'contracts',where,params),all<Item>(ctx.db,'items',where,params),all<StoredFile>(ctx.db,'files',where,params),all<AuditEvent>(ctx.db,'audit',where,params),all<Membership>(ctx.db,'memberships',where,params),all<Feedback>(ctx.db,'feedback',where,params),
   ]);
   audit.sort((a,b)=>b.at.localeCompare(a.at));feedback.sort((a,b)=>b.at.localeCompare(a.at));
-  return {user:{userId:ctx.user.userId,email:ctx.user.email,displayName:ctx.user.displayName},membership:ctx.member,organizations,contracts,items,files,audit,members,feedback,capabilities:{demo:env.DEMO_MODE==='true',extraction:env.OPENAI_API_KEY?'AI + PDF text + OCR v prohlížeči':'PDF text + OCR v prohlížeči',adviser:env.OPENAI_API_KEY?'AI rádce se zdroji':'Průvodce podklady · bez jazykového modelu'}};
+  return {user:{userId:ctx.user.userId,email:ctx.user.email,displayName:ctx.user.displayName},membership:ctx.member,organizations,contracts,items,files,audit,members,feedback,capabilities:{email:Boolean(env.ENCRYPT_EMAIL),demo:env.DEMO_MODE==='true',extraction:env.OPENAI_API_KEY?'AI + PDF text + OCR v prohlížeči':'PDF text + OCR v prohlížeči',adviser:env.OPENAI_API_KEY?'AI rádce se zdroji':'Průvodce podklady · bez jazykového modelu'}};
 }
 // Compare every item version at submission/approval so a concurrent edit cannot
 // slip between validation and the state transition. D1 batch is transactional.
@@ -189,7 +190,23 @@ export async function command(ctx:ServerContext,action:string,raw:unknown):Promi
       if(!await one(ctx.db,'organizations',organizationId))throw new ApiError(404,'Organizace neexistuje.');
     }
     const email=text(p.email,'E-mail',254,true).toLowerCase();if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))throw new ApiError(400,'Zadejte platný e-mail pozvaného.');const token=Array.from(crypto.getRandomValues(new Uint8Array(32))).map(b=>b.toString(16).padStart(2,'0')).join('');const expiresAt=new Date(Date.now()+7*86400000).toISOString();
-    await ctx.db.batch([ctx.db.prepare('INSERT INTO invitations (id,organization_id,email,role,token_hash,expires_at,used_by,created_by) VALUES (?,?,?,?,?,?,NULL,?)').bind(id('invite'),organizationId,email,role,await digest(new TextEncoder().encode(token)),expiresAt,ctx.user.userId),auditStatement(ctx,'member.invited',`Připraven jednorázový odkaz pro ${email} · ${role}. E-mail neodeslán.`,organizationId)]);return {inviteUrl:`/?invite=${token}`,expiresAt};
+    const emailStatement=env.ENCRYPT_EMAIL?[ctx.db.prepare('INSERT INTO outbox (id,recipient,payload,available_at,created_at) VALUES (?,?,?,?,?)').bind(id('email'),email,env.ENCRYPT_EMAIL('Javor · Pozvánka / Invitation',`${env.EMAIL_ORIGIN}/login?invite=${token}`),now(),now())]:[];
+    await ctx.db.batch([...emailStatement,ctx.db.prepare('INSERT INTO invitations (id,organization_id,email,role,token_hash,expires_at,used_by,created_by) VALUES (?,?,?,?,?,?,NULL,?)').bind(id('invite'),organizationId,email,role,await digest(new TextEncoder().encode(token)),expiresAt,ctx.user.userId),auditStatement(ctx,'member.invited',`Připraven jednorázový odkaz pro ${email} · ${role}. ${env.ENCRYPT_EMAIL?'E-mail zařazen do fronty.':'E-mail neodeslán.'}`,organizationId)]);return {inviteUrl:`/?invite=${token}`,expiresAt};
+  }
+  if(['disableMember','enableMember'].includes(action)){
+    if(env.DEMO_MODE==='true')throw new ApiError(403,'Účty nejsou součástí veřejné ukázky.');
+    const member=await one<Membership>(ctx.db,'memberships',text(p.id,'Člen',100,true));
+    if(!member)throw new ApiError(404,'Člen nebyl nalezen.');
+    if(member.role==='federation')federation(ctx);else manager(ctx,member.organizationId);
+    if(member.userId===ctx.user.userId)throw new ApiError(400,'Vlastní přístup nelze odebrat. / You cannot remove your own access.');
+    const updated={...member,disabled:action==='disableMember'};
+    await ctx.db.batch([ctx.db.prepare('UPDATE memberships SET data=? WHERE id=?').bind(json(updated),member.id),ctx.db.prepare('UPDATE invitations SET used_by=? WHERE email=? AND used_by IS NULL').bind('revoked:'+ctx.user.userId,member.email),auditStatement(ctx,action==='disableMember'?'member.disabled':'member.enabled',member.email,member.organizationId)]);return {};
+  }
+  if(action==='revokeInvite'){
+    const invite=await ctx.db.prepare('SELECT id,organization_id,role,email FROM invitations WHERE id=? AND used_by IS NULL').bind(text(p.id,'Pozvánka',100,true)).first<{id:string;organization_id:string;role:string;email:string}>();
+    if(!invite)throw new ApiError(404,'Pozvánka není dostupná.');
+    if(invite.role==='federation')federation(ctx);else manager(ctx,invite.organization_id);
+    await ctx.db.batch([ctx.db.prepare('UPDATE invitations SET used_by=? WHERE id=? AND used_by IS NULL').bind('revoked:'+ctx.user.userId,invite.id),auditStatement(ctx,'invite.revoked',invite.email,invite.organization_id)]);return {};
   }
   if(action==='feedback'){
     const organizationId=text(p.organizationId??ctx.member.organizationId,'Organizace',100);scope(ctx,organizationId);if(organizationId&&!await one(ctx.db,'organizations',organizationId))throw new ApiError(404,'Organizace neexistuje.');const f:Feedback={id:id('feedback'),text:text(p.text,'Návrh',10000,true),at:now(),author:ctx.user.displayName||ctx.user.email,organizationId};await ctx.db.batch([ctx.db.prepare('INSERT INTO feedback (id,organization_id,data) VALUES (?,?,?)').bind(f.id,organizationId,json(f)),auditStatement(ctx,'feedback.created',f.text,organizationId)]);return {id:f.id};
@@ -228,9 +245,10 @@ export async function saveFile(ctx:ServerContext,contractId:string,kind:StoredFi
   const bytes=new Uint8Array(await upload.arrayBuffer());
   let type='';if(bytes[0]===0x25&&bytes[1]===0x50&&bytes[2]===0x44&&bytes[3]===0x46&&bytes[4]===0x2d)type='application/pdf';else if(bytes[0]===0xff&&bytes[1]===0xd8&&bytes[2]===0xff)type='image/jpeg';else if(bytes.slice(0,8).every((b,i)=>b===[137,80,78,71,13,10,26,10][i])&&bytes.length>=8)type='image/png';else if(bytes.length>=12&&new TextDecoder().decode(bytes.slice(0,4))==='RIFF'&&new TextDecoder().decode(bytes.slice(8,12))==='WEBP')type='image/webp';
   if(!type)throw new ApiError(400,'Podporované jsou skutečné PDF, JPEG, PNG a WebP soubory. Přípona souboru nestačí.');
+  if(env.SCAN_FILE)try{await env.SCAN_FILE(bytes);}catch{throw new ApiError(422,'Příloha neprošla bezpečnostní kontrolou. Zkuste později nebo kontaktujte správce. / Attachment could not pass the security check. Retry later or contact your administrator.');}
   const name=upload.name.replace(/[\u0000-\u001f\u007f/\\]/g,'_').slice(0,200)||'doklad';
   const file:StoredFile={id:id('file'),organizationId:contract.organizationId,contractId,name,type,size:bytes.length,sha256:await digest(bytes),kind,createdAt:now()};const key=`${file.organizationId}/${contractId}/${file.id}`;
   await ctx.bucket.put(key,bytes,{httpMetadata:{contentType:type},customMetadata:{sha256:file.sha256}});
-  try{await ctx.db.batch([ctx.db.prepare('INSERT INTO files (id,organization_id,contract_id,object_key,data) VALUES (?,?,?,?,?)').bind(file.id,file.organizationId,contractId,key,json(file)),auditStatement(ctx,'file.uploaded',`${name} · ${bytes.length} B · SHA-256 ${file.sha256}`,file.organizationId,contractId)]);}catch(error){await ctx.bucket.delete(key);throw error;}
+  try{const quota=Number(env.STORAGE_QUOTA_BYTES||1073741824);const result=await ctx.db.batch([ctx.db.prepare("INSERT INTO files (id,organization_id,contract_id,object_key,data) SELECT ?,?,?,?,? WHERE (SELECT COALESCE(SUM(json_extract(data,'$.size')),0) FROM files)+?<=?").bind(file.id,file.organizationId,contractId,key,json(file),file.size,quota),auditStatement(ctx,'file.uploaded',`${name} · ${bytes.length} B · SHA-256 ${file.sha256}`,file.organizationId,contractId,'',true)]);if(!result[0].meta.changes)throw new ApiError(413,'Úložiště je plné. Kontaktujte správce. / Storage is full. Contact your administrator.');}catch(error){await ctx.bucket.delete(key);throw error;}
   return file;
 }

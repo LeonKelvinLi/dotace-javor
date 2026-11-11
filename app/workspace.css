@@ -419,3 +419,5 @@
     .review-original-shortcut {display:flex;align-items:center;gap:6px;font-size:13px;margin:-5px 0 16px;}
   }
 }
+
+.session-recovery{position:fixed;z-index:10000;top:12px;left:50%;transform:translateX(-50%);width:min(900px,96vw);display:flex;flex-wrap:wrap;gap:12px;align-items:center;padding:18px;background:#fff8e8;border:1px solid #bd9142;border-radius:6px;box-shadow:0 4px 24px #0002}.session-recovery strong{flex:1;min-width:200px}.draft-status{font-size:12px;line-height:1.5;color:#52665b;padding:10px 0}.modal>.notice{margin:12px 20px}.modal>.notice button{margin-right:8px}

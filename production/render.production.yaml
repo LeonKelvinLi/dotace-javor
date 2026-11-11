@@ -1,0 +1,44 @@
+# PROPOSAL ONLY. Do not apply until the client approves costs and owns the accounts.
+services:
+  - type: web
+    name: javor-client-production
+    runtime: docker
+    plan: 1c-2g
+    region: frankfurt
+    dockerContext: .
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    autoDeploy: false
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: DEMO_MODE
+        value: 'false'
+      - key: APP_ORIGIN
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: STORAGE_BUCKET
+        value: originals
+      - key: STORAGE_QUOTA_BYTES
+        value: '10737418240'
+      - key: OWNER_EMAIL
+        sync: false
+      - key: SUPPORT_EMAIL
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+      - key: OUTBOX_KEY
+        sync: false
+      - key: CLAMAV_HOST
+        sync: false
+      - key: SENTRY_DSN
+        sync: false

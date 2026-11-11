@@ -3,6 +3,15 @@ export type ExtractionMode = 'receipt' | 'organization' | 'contract';
 export type ReceiptProposal = { fields: Record<string, unknown>; sourceAmount?: number; sourceClaimed?: number; currency?: string; warnings: string[] };
 export type ExtractionContext = { selection: string; replace?: boolean; isReport?: boolean };
 export type ExtractionResult = { text: string; fields: Record<string, unknown>; method: string; pages: number; confidence?: number; currency?: string; sourceAmount?: number; sourceClaimed?: number; warnings?: string[]; receipts?: ReceiptProposal[] };
+export function visiblePdfProposal(visible:string,embedded:string,mode:ExtractionMode='receipt'){
+  const proposal=documentProposal(visible,mode),layer=documentProposal(embedded,mode);
+  // Hidden/old PDF text must never overrule what the reviewer can see. OCR is
+  // authoritative; a disagreeing text layer is surfaced as a review warning.
+  const keys=['amount','claimed','date','number','supplierIco'];
+  const conflict=keys.some(key=>proposal.fields[key]!==undefined&&layer.fields[key]!==undefined&&String(proposal.fields[key])!==String(layer.fields[key]));
+  if(conflict)proposal.warnings.push('Textová vrstva PDF se liší od viditelného dokladu. Údaje jsou z OCR; pečlivě ověřte číslo, částky a datum.');
+  return proposal;
+}
 const currencyPattern = /\b(?:CZK|EUR|USD|GBP|CHF|PLN|HUF|JPY|CNY|CAD|AUD|BRL)\b|Kč|[€$£¥]/gi;
 function currencies(text: string): string[] {
   return [...new Set((text.match(currencyPattern) || []).map(c => ({'KČ':'CZK','€':'EUR','$':'USD','£':'GBP','¥':'JPY'}[c.toUpperCase()] || c.toUpperCase())))];
@@ -29,7 +38,7 @@ export function parseCzechAmount(value: string): number | undefined {
 }
 export function parsePaymentDate(value: string): string | undefined {
   let year: number, month: number, day: number;
-  const numeric = value.trim().match(/^(\d{1,4})\s*([.\/-])\s*(\d{1,2})\s*[.\/-]\s*(\d{1,4})$/);
+  const numeric = value.trim().match(/^(\d{1,4})\s*([./-])\s*(\d{1,2})\s*[./-]\s*(\d{1,4})$/);
   if (numeric) {
     if (numeric[1].length === 4) [year, month, day] = [+numeric[1], +numeric[3], +numeric[4]];
     else { [day, month, year] = [+numeric[1], +numeric[3], +numeric[4]]; if (numeric[2] === '/' && day <= 12 && month <= 12 && day !== month) return undefined; }
@@ -222,8 +231,7 @@ export async function extractDocument(file: File, mode: ExtractionMode, progress
           } finally { canvas.width = 0; canvas.height = 0; page.cleanup(); }
         }
         if (!text.trim()) throw new Error('V dokumentu nebyl rozpoznán text. Zkuste ostřejší sken.');
-        const readable = embedded.trim().length >= 30 ? embedded : text;
-        return { text: readable, confidence: confidence / pdf.numPages, ...documentProposal(readable, mode), method: embedded.trim().length >= 30 ? 'PDF · OCR + text' : 'PDF · OCR', pages: pdf.numPages };
+        return { text, confidence: confidence / pdf.numPages, ...visiblePdfProposal(text,embedded,mode), method:'PDF · OCR', pages:pdf.numPages };
       }
       report('Připravuji obrázek…');
       const decoding = createImageBitmap(file).then(bitmap => {
