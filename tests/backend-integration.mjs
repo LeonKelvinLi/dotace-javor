@@ -14,12 +14,13 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import vm from 'node:vm';
 import ts from 'typescript';
+import {openDatabase} from '../production/database.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const sqlite = new DatabaseSync(':memory:');
 const objects = new Map();
 let signedInUser = null;
-const db = {
+const db = process.env.TEST_DATABASE_URL ? await openDatabase({connectionString:process.env.TEST_DATABASE_URL}) : {
   prepare(sql) {
     const statement = sqlite.prepare(sql);
     function prepared(values = []) {
@@ -83,7 +84,7 @@ async function check(name, work) { await work(); passed.push(name); console.log(
 
 try {
   const journal = JSON.parse(readFileSync(path.join(root, 'drizzle/meta/_journal.json'), 'utf8'));
-  for (const migration of journal.entries) sqlite.exec(readFileSync(path.join(root, 'drizzle', `${migration.tag}.sql`), 'utf8'));
+  if(!process.env.TEST_DATABASE_URL)for (const migration of journal.entries) sqlite.exec(readFileSync(path.join(root, 'drizzle', `${migration.tag}.sql`), 'utf8'));
   await check('anonymous access is rejected and first owner bootstraps exactly once', async () => {
     await rejectStatus(() => server.requireActor(), 401);
     signedInUser = user('owner', 'owner@example.test');
@@ -166,8 +167,8 @@ try {
     assert.ok(state.audit.some(e => e.action === 'item.reply' && e.detail.includes('zářijovému')));
     assert.equal(state.items.find(i => i.id === checked.id).sfjDecision, 'pending');
     assert.equal(state.contracts.find(c => c.id === contract.id).status, 'submitted');
-    assert.throws(() => sqlite.exec("UPDATE audit SET data='{}'"), /immutable/);
-    assert.throws(() => sqlite.exec('DELETE FROM audit'), /immutable/);
+    await assert.rejects(async()=>db.exec?await db.exec("UPDATE audit SET data='{}'"):sqlite.exec("UPDATE audit SET data='{}'"), /immutable/);
+    await assert.rejects(async()=>db.exec?await db.exec('DELETE FROM audit'):sqlite.exec('DELETE FROM audit'), /immutable/);
   });
   await check('SFJ bulk review and final approval persist a locked conclusion', async () => {
     await server.command(federation, 'bulkAccept', { contractId: contract.id, ids: state.items.filter(i => i.contractId === contract.id).map(i => i.id) });
@@ -187,7 +188,7 @@ try {
   await check('invitation token is hashed, email-bound, expiring and single-use', async () => {
     const invitation = await server.command(federation, 'invite', { organizationId: 'org-sever', email: 'new@example.test', role: 'member' });
     const token = new URL(invitation.inviteUrl, 'https://app.test').searchParams.get('invite');
-    const stored = sqlite.prepare('SELECT token_hash FROM invitations').get(); assert.notEqual(stored.token_hash, token);
+    const stored = await db.prepare('SELECT token_hash FROM invitations').first(); assert.notEqual(stored.token_hash, token);
     await rejectStatus(() => server.acceptInvite({ ...federation, user: user('wrong', 'wrong@example.test'), member: null }, token), 403);
     const invited = { ...federation, user: user('new', 'new@example.test'), member: null };
     await server.acceptInvite(invited, token);
@@ -196,7 +197,7 @@ try {
     assert.equal((await server.requireActor()).member.organizationId, 'org-sever');
     signedInUser = federation.user;
     const expired = await server.command(federation, 'invite', { organizationId: 'org-sever', email: 'expired@example.test', role: 'member' });
-    sqlite.prepare("UPDATE invitations SET expires_at='2000-01-01T00:00:00Z' WHERE email=?").run('expired@example.test');
+    await db.prepare("UPDATE invitations SET expires_at='2000-01-01T00:00:00Z' WHERE email=?").bind('expired@example.test').run();
     await rejectStatus(() => server.acceptInvite({ ...invited, user: user('expired', 'expired@example.test') }, expired.inviteUrl.split('=')[1]), 400);
   });
   await check('only SFJ can invite another federation reviewer and existing organization accounts cannot escalate', async () => {
@@ -218,7 +219,8 @@ try {
     assert.equal(organization.member.role, 'org_admin');
     signedInUser = federation.user;
   });
-  console.log(`\nPASS ${passed.length} backend integration scenarios (actual commands + SQLite; no network or external accounts).`);
+  console.log(`\nPASS ${passed.length} backend integration scenarios (actual commands + ${process.env.TEST_DATABASE_URL?'PostgreSQL':'SQLite'}; synthetic accounts).`);
 } finally {
   sqlite.close();
+  if(db.close)await db.close();
 }

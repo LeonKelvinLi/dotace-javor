@@ -1,61 +1,47 @@
-# Dotace · Sportovní federace Javor
+# Javor · Grant settlements
 
-[Open the homework demo](https://dotace-javor-99x6.onrender.com/) · [Source repository](https://github.com/LeonKelvinLi/dotace-javor)
+[Public demo](https://dotace-javor-99x6.onrender.com/) · [Source](https://github.com/LeonKelvinLi/dotace-javor)
 
-The Render demo opens without a login. It is a shared fictional workspace: use test documents only. Start with **English → Try the sample settlement**. The source repository remains private; repository access must be arranged separately.
+Organizations upload expense evidence, check the extracted details, and submit a settlement against a grant contract. Federation reviewers accept or reject expenses, request missing information, and approve the final settlement. Originals and the decision history remain attached to each contract.
 
-A working Czech grant-settlement application built from the fictional client handoff. The original sales prototype and exercise packet are preserved in the parent directory; this folder is the implemented application.
+The public demo is a shared fictional workspace without login. **Never upload client information there.** Client production is a separate, authenticated deployment with its own database and storage. This repository now includes the production implementation and deployment configuration; provider provisioning and the client acceptance gates are documented below.
 
-Organizations prepare receipts against individual contracts. Formal checks require supporting originals and explanations for exceptions. A lead administrator submits a declaration; federation staff review items, request clarification, reject with reasons and conclude the settlement with a grant reduction. The original documents and the complete decision trail remain attached to their contract.
+## Run locally
 
-## Start
-
-Requires Node.js 22.13+ (Node 24 recommended).
+Node **24** is required for the native runtime.
 
 ```sh
 npm ci
 npm run build
-node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0000_round_madelyne_pryor.sql
-npm run dev
+DEMO_MODE=true APP_ORIGIN=http://localhost:10000 npm run start:render
 ```
 
-Open the printed localhost URL. The development sign-in creates a local test identity, not a production account. Local D1 and R2 data persist in ignored `.wrangler/state/`. Apply the migration only to a new local database. Later schema updates append migrations.
+Open [localhost:10000](http://localhost:10000). Czech opens by default; choose English in the header. Demo data persists under `.render-data/native/public-demo`. For an empty protected local workspace, set `ADMIN_EMAIL`, a synthetic `ADMIN_PASSWORD` of at least 12 characters, `APP_ORIGIN`, and `DEMO_MODE=false` in your shell; then run the same server command. `SEED_DEMO=true` explicitly enables fictional fixtures for local testing only. Production refuses that setting.
+
+## Production architecture
+
+- React/Vite client and a native Node HTTP/API server. No Cloudflare simulator in the serving process.
+- Supabase verified authentication, password recovery, invite-bound application membership and TOTP for administrators.
+- PostgreSQL with transactional updates, organization authorization, optimistic version checks and immutable audit events. All application tables have RLS enabled with no public data-API policies.
+- Private Supabase object storage. Original-file access always passes through application authorization. File type, per-file limit, total quota and configured ClamAV checks run before an original becomes available.
+- Browser OCR processes visible pages automatically. Local extraction does not need a paid AI API. Optional OpenAI extraction/advice remains server-side, bounded, and requires human review.
+- Encrypted, retrying Resend outbox for invitations and workflow updates; password verification/recovery email is handled by Supabase Auth with a configured SMTP provider.
+- Sentry errors without request bodies or document content; health endpoint; graceful shutdown; CI on PRs and pushes.
+- Encrypted application backups include database records and independently verified original files. Restore refuses occupied destinations.
+
+## Verify
 
 ```sh
-npm run typecheck
-npm test
-npm run test:integration
-npm run build
+npm run check
 ```
 
-## Included
+This runs lint, types, unit/domain tests, backend integration scenarios, the client build, native HTTP/authentication tests, and backup/outbox tests. CI also exercises PostgreSQL and builds the container. See [production handover](docs/PRODUCTION-HANDOVER.md) for provider checks that cannot be established by local tests.
 
-- Organizations, contacts and statutory representatives; contracts and supporting conditions, decisions and amendments.
-- An explicit login-free homework mode on Render, with isolated demo storage. Authenticated mode retains server-enforced federation / organization administrator / member permissions.
-- Original PDF, JPG, PNG and WebP uploads, private viewing, SHA-256, 10 MB per-file limit.
-- Actual PDF text extraction and local Czech/English OCR for photographs and scanned PDFs. OCR assets are served by this app.
-- Editable extraction proposals, all simultaneous review findings, separate organization and federation decisions.
-- Partial claims and personal-recipient explanations; other-company recipient blocking; no invented cash threshold.
-- Submitted-data locks, optimistic version conflicts, supplement request/reply history and immutable application audit events.
-- Bulk acceptance, random selection for spot checks, final conclusion/reduction, three cost groups, CSV export and a direct, paginated PDF report download with Czech typography.
-- Expiring one-use invitation links; feedback; live ARES lookup on explicit request.
-- Server-side OpenAI integration for document extraction and a source-grounded adviser when a project key is configured. Without that key the app explicitly offers browser OCR and a limited document guide.
+## Client handover
 
-## Handoff
+- [Production setup, costs, operations and release gates](docs/PRODUCTION-HANDOVER.md)
+- [Cold audit of the previous deployment](docs/CLIENT-READINESS-AUDIT.md)
+- [User walkthrough](docs/WALKTHROUGH.md)
+- [Original exercise scope](docs/SCOPE.md)
 
-- [Implemented scope, evidence and unresolved policy](docs/SCOPE.md)
-- [Setup, access and maintenance](docs/HANDOVER.md)
-- [Short walkthrough and acceptance checklist](docs/WALKTHROUGH.md)
-- [Verification record](docs/VERIFICATION.md)
-
-The Render homework demo needs no account or invitation; one demo identity can exercise the whole workflow. Authenticated mode is retained for environments that need separate accounts. No email is sent by the app. Fictional fixtures and their PDF originals are clearly labelled; no original client system is accessed. The client supplied no current signed contracts, authoritative SFJ instructions or ASP decision, so real eligibility cannot be inferred from the 2025 training extracts.
-
-## AI configuration
-
-Secrets belong in ignored `.dev.vars` for local Workers and in the hosting platform's secret store for deployment. Use `OPENAI_API_KEY`; `OPENAI_MODEL` defaults to `gpt-5.4-mini`. Never commit keys. AI requests use the Responses API with `store:false`, a 60-second timeout, bounded output and a durable 30 requests/hour/user limit. Actual uploaded policy documents and contract conditions are supplied to the adviser. Every suggestion needs human confirmation and does not alter review decisions automatically.
-
-## Hosting
-
-React / Vinext runs on a Cloudflare Worker. D1 stores records and R2 stores originals; `.openai/hosting.json` declares the bindings. The Sites deployment workflow builds and publishes the Worker and applies production migrations. Production identity headers must come from the trusted hosting authentication boundary. See the handover for moving to another host and replacing that boundary safely.
-
-For Render configuration and local login-free startup, see [the hosting adapter](render/README.md). `DEMO_MODE=true` uses a separate public-demo storage directory and a fixed demo identity. Invitations and paid OpenAI integration are disabled in that mode.
+The original exercise packet and sales prototype remain in the parent directory. Earlier Sites/Worker instructions describe the previous runtime; the native production handover supersedes those deployment instructions. The fictional training extracts are not authoritative eligibility rules: the client must supply current contracts, grant rules, reporting requirements and retention policy before using real records.

@@ -3,7 +3,6 @@
 import React, {
   useCallback,
   useEffect,
-  useMemo,
   useRef,
   useState,
 } from "react";
@@ -21,7 +20,6 @@ import {
   Copy,
   Download,
   Eye,
-  FileCheck2,
   FileText,
   FolderOpen,
   History,
@@ -32,13 +30,11 @@ import {
   MessageSquare,
   Paperclip,
   Plus,
-  Printer,
   RotateCcw,
   Search,
   Send,
   ShieldCheck,
   SlidersHorizontal,
-  Sparkles,
   TriangleAlert,
   Upload,
   Users,
@@ -160,8 +156,11 @@ async function jsonRequest<T = Record<string, unknown>>(
     .json()
     .catch(() => ({ error: "Server nevrátil očekávanou odpověď." }))) as {
     error?: string;
+    code?: string;
     details?: string[];
   };
+  if(data.code==='MFA_REQUIRED')window.location.assign('/account');
+  if(response.status===401)window.dispatchEvent(new Event("dotace:session-expired"));
   if (!response.ok)
     throw Object.assign(
       new Error(data.error || "Požadavek se nepodařilo dokončit."),
@@ -179,6 +178,8 @@ function Workspace() {
   const [state, setState] = useState<AppState | null>(null);
   const [error, setError] = useState("");
   const [unauthorized, setUnauthorized] = useState(false);
+  const [sessionExpired,setSessionExpired]=useState(false);
+  useEffect(()=>{const expired=()=>setSessionExpired(true);window.addEventListener('dotace:session-expired',expired);return()=>window.removeEventListener('dotace:session-expired',expired);},[]);
   const [view, setView] = useState<View>("contracts");
   const [contractId, setContractId] = useState("");
   const [organizationId, setOrganizationId] = useState("");
@@ -275,6 +276,8 @@ function Workspace() {
     setQuery("");
     window.history.replaceState(null, "", window.location.pathname);
   };
+  const sessionRecovery=sessionExpired&&<div className="session-recovery" role="alert"><strong>{t('Přihlášení vypršelo. Rozepsaný formulář zůstává otevřený.')}</strong><a className="button primary" href="/login" target="_blank" rel="noopener noreferrer">{t('Přihlásit se v nové kartě')}</a><button className="button secondary" onClick={()=>void load().then(()=>setSessionExpired(false)).catch(()=>{})}>{t('Už jsem přihlášený · pokračovat')}</button></div>;
+  useEffect(()=>{if(sessionExpired)document.querySelector<HTMLAnchorElement>('.session-recovery a')?.focus();},[sessionExpired]);
   const closeModal = () => {
     if (!busy) setModal(null);
   };
@@ -565,6 +568,7 @@ function Workspace() {
           </div>
         </div>
       </aside>
+      {!modal&&sessionRecovery}
       <div className="app-main">
         <header className="topbar no-print">
           <div className="breadcrumb">
@@ -583,8 +587,9 @@ function Workspace() {
           </div>
           <div className="top-actions">
             <LanguageSwitch />
-            <span className="pilot">
-              <span />{t("Pilot · fiktivní data")}</span>
+            {demo&&<span className="pilot"><span />{t("Pilot · fiktivní data")}</span>}
+            {!demo&&<a href="/account" className="button secondary">{t('Můj účet')}</a>}
+            {!demo&&state.membership.role!=='member'&&<a href="/access" className="button secondary">{t('Správa přístupů')}</a>}
             {federation && (
               <label className="preview-switch">
                 <input
@@ -1100,12 +1105,12 @@ function Workspace() {
                 <div>
                   <h2>{t(demo ? "Vyzkoušejte vyúčtování dotace" : federation ? "Spravujete dotace za federaci" : "Připravte vyúčtování své organizace")}</h2>
                   <p>{t(demo ? "Otevřete ukázkové vyúčtování, nahrajte testovací fakturu a zkontrolujte doplněné údaje. Pak si vyzkoušejte odeslání, kontrolu a stažení souhrnu. Celý postup zvládnete sami." : federation ? "Založte organizaci, přidejte její smlouvu a pozvěte správce klubu. Klub nahraje výdaje a odešle je vám ke kontrole." : "Otevřete svou smlouvu, nahrajte faktury nebo účtenky, zkontrolujte doplněné údaje a odešlete vyúčtování federaci.")}</p>
-                  <p className="guide-sample">{t("Ukázkové organizace a doklady slouží k vyzkoušení celého postupu.")}</p>
+                  {demo&&<p className="guide-sample">{t("Ukázkové organizace a doklady slouží k vyzkoušení celého postupu.")}</p>}
                 </div>
                 <div className="guide-actions">
                   {state.contracts.some(c => c.id === 'contract-haj') && <button className="button primary" onClick={() => openContract('contract-haj')}>{t("Vyzkoušet ukázkové vyúčtování")}<ArrowRight size={16} /></button>}
-                  {federation && <button className="button primary" onClick={openReviewQueue}><ShieldCheck size={16}/>{t('Zkontrolovat odeslaná vyúčtování')} ({reviewQueue.length})</button>}
-                  {federation && <button className="button secondary" onClick={() => { goHome('organizations'); setModal({type:'organization'}); }}>{t("Založit vlastní organizaci")}</button>}
+                  {federation && reviewQueue.length>0 && <button className="button primary" onClick={openReviewQueue}><ShieldCheck size={16}/>{t('Zkontrolovat odeslaná vyúčtování')} ({reviewQueue.length})</button>}
+                  {federation && <button className={!state.organizations.length?"button primary":"button secondary"} onClick={() => { goHome('organizations'); setModal({type:'organization'}); }}>{t("Založit vlastní organizaci")}</button>}
                 </div>
               </section>}
               {statusFilter !== 'submitted' && <div className="overview-metrics">
@@ -1480,7 +1485,7 @@ function Workspace() {
           )}
           <footer className="page-footer no-print">
             <span translate="no">{t("Javor / Dotace")}</span>
-            <span>{t("Zkušební prostředí · fiktivní data")}</span>
+            {demo&&<span>{t("Zkušební prostředí · fiktivní data")}</span>}
           </footer>
         </main>
       </div>
@@ -1503,6 +1508,7 @@ function Workspace() {
       )}
       {modal && (
         <ModalShell
+          sessionRecovery={sessionRecovery}
           title={
             t(modal.type === "organization"
               ? modal.organization
@@ -1653,6 +1659,7 @@ function Workspace() {
           )}
           {modal.type === "invite" && (
             <InviteForm
+              emailEnabled={Boolean(state.capabilities.email)}
               organizationId={modal.organizationId}
               federation={!!federation}
               busy={busy}
@@ -1804,17 +1811,22 @@ function ModalShell({
   title,
   children,
   onClose,
-  wide, editor,
+  wide, editor, sessionRecovery,
 }: {
   title: string;
   children: React.ReactNode;
   onClose: () => void;
   wide?: boolean;
   editor?: boolean;
+  sessionRecovery?: React.ReactNode;
 }) {
   const { t } = useLanguage();
   const ref = useRef<HTMLDivElement>(null);
-  const closeRef = useRef(onClose); closeRef.current = onClose;
+  const [confirmClose,setConfirmClose]=useState(false);
+  const dirty=useRef(false);
+  const requestClose=()=>dirty.current?setConfirmClose(true):onClose();
+  const closeRef = useRef(requestClose); closeRef.current = requestClose;
+  useEffect(()=>{const protect=(event:BeforeUnloadEvent)=>{if(dirty.current){event.preventDefault();event.returnValue='';}};window.addEventListener('beforeunload',protect);return()=>window.removeEventListener('beforeunload',protect);},[]);
   useEffect(() => {
     const before = document.activeElement as HTMLElement;
     const key = (e: KeyboardEvent) => {
@@ -1854,26 +1866,29 @@ function ModalShell({
     <div
       className="modal-backdrop no-print"
       onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
+        if (e.target === e.currentTarget) requestClose();
       }}
     >
       <div
         ref={ref}
+        onChangeCapture={()=>{dirty.current=true;}}
         className={`modal ${wide ? "wide" : ""} ${editor?"receipt-modal":""}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-title"
       >
+        {sessionRecovery}
         <div className="modal-header">
           <h2 id="modal-title" tabIndex={-1}>{t(title)}</h2>
           <button
             className="icon-button"
             aria-label={t("Zavřít dialog")}
-            onClick={onClose}
+            onClick={requestClose}
           >
             <X size={20} />
           </button>
         </div>
+        {confirmClose&&<div className="notice warning" role="alert"><div><strong>{t('Změny ještě nejsou uložené do evidence.')}</strong><p>{t('Pokračujte v úpravách a uložte formulář, nebo jej zavřete.')}</p><button type="button" className="button primary" onClick={()=>setConfirmClose(false)}>{t('Pokračovat v úpravách')}</button><button type="button" className="button secondary" onClick={onClose}>{t('Přesto zavřít')}</button></div></div>}
         {children}
       </div>
     </div>
@@ -2290,12 +2305,16 @@ function ItemForm({
 }) {
   const { t } = useLanguage();
   const organizationName = state.organizations.find(o=>o.id===contract.organizationId)?.name || '';
-  const [draft, setDraft] = useState<Item>({
-    ...item,
-    recipientName: item.recipientName || (item.recipientType === 'organization' ? organizationName : ''),
-    fileIds: [...item.fileIds],
+  const draftKey=`dotace-draft:${state.user.userId}:${contract.id}:${item.id||'new'}`;
+  const [restored,setRestored]=useState(false);
+  const [draft, setDraft] = useState<Item>(()=>{
+    const initial={...item,recipientName:item.recipientName||(item.recipientType==='organization'?organizationName:''),fileIds:[...item.fileIds]};
+    try{const saved=JSON.parse(sessionStorage.getItem(draftKey)||'null');if(saved&&saved.version===item.version&&Date.now()-saved.at<8*3600000&&saved.value?.contractId===contract.id&&Array.isArray(saved.value.fileIds))return {...initial,...saved.value};}catch{}
+    return initial;
   });
-  const editedFields = useRef(new Set<string>());
+  useEffect(()=>{try{if(sessionStorage.getItem(draftKey))setRestored(true);}catch{}},[draftKey]);
+  useEffect(()=>{if(!editable)return;try{sessionStorage.setItem(draftKey,JSON.stringify({version:item.version,at:Date.now(),value:draft,manual:Array.from(editedFields.current)}));}catch{}},[draft,draftKey,editable,item.version]);
+  const editedFields = useRef(new Set<string>((()=>{try{const saved=JSON.parse(sessionStorage.getItem(draftKey)||'null');return Array.isArray(saved?.manual)?saved.manual:[];}catch{return [];}})()));
   const autofill = useRef<AutofillState>({values: item.recipientName ? {} : {recipientName:organizationName},selection:''});
   const [extractionBusy, setExtractionBusy] = useState(false);
   const [error, setError] = useState("");
@@ -2517,6 +2536,7 @@ function ItemForm({
         )}
       </div>
       <div className="item-entry"><div className="item-fields">
+        {editable&&<p className="draft-status" role="status">{t(restored?'Rozepsaný doklad byl obnoven. Zkontrolujte jej a uložte.':'Rozepsaný doklad se uchovává v této kartě po dobu 8 hodin. Do evidence jej zapíše až Uložit doklad.')}</p>}
         <FormError error={error} />
         {duplicate && <div className="notice warning" role="status"><div><strong>{t("Doklad už je v evidenci")}</strong><p>{t(`${duplicate.number} · ${duplicate.supplier}. Nalezené údaje jsou vyplněné; uložený doklad můžete otevřít bez vytvoření kopie.`)}</p><button type="button" className="button secondary" onClick={()=>onOpenExisting(duplicate)}><span>{t("Otevřít uložený doklad")}</span></button></div></div>}
         <form id="receipt-form"
@@ -2525,7 +2545,7 @@ function ItemForm({
             setError("");
             if (duplicate) { setError('Tento doklad již je v evidenci. Otevřete uložený doklad.'); return; }
             if (!editable || busy || extractionBusy || readingSource || uploading) return;
-            void onSave(draft).catch((x) => setError(x.message));
+            void onSave(draft).then(()=>{try{sessionStorage.removeItem(draftKey);}catch{}}).catch((x) => setError(x.message));
           }}
         >
           <div className="item-section-title">
@@ -3403,11 +3423,13 @@ function TextForm({
 function InviteForm({
   organizationId,
   federation,
+  emailEnabled,
   busy,
   onInvite,
 }: {
   organizationId: string;
   federation: boolean;
+  emailEnabled: boolean;
   busy: boolean;
   onInvite: (email: string, role: string) => Promise<{ inviteUrl?: string }>;
 }) {
@@ -3463,7 +3485,7 @@ function InviteForm({
         </div>
       )}
       <div className="inline-banner">
-        <Users size={17} />{t("Pozvánka se automaticky neposílá e-mailem. Člen také potřebuje přístup k této soukromé aplikaci.")}</div>
+        <Users size={17} />{t(emailEnabled?'Po vytvoření bude pozvánka zařazena k odeslání e-mailem. Odkaz můžete také zkopírovat.':'E-mail není nastavený. Zkopírujte odkaz a předejte jej pozvanému členovi.')}</div>
       {link && (
         <div className="invite-result">
           <strong>{t("Pozvánka je připravená")}</strong>

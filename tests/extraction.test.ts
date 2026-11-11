@@ -122,3 +122,9 @@ test('sample receipts with Czech labels without accents retain total and actual 
   assert.equal(fields.payment, 'bank');
   assert.equal(fields.category, 'materials');
 });
+
+test('a conflicting hidden PDF text layer cannot override visible OCR amounts',async()=>{
+  const {visiblePdfProposal}=await import('../lib/extraction.ts');
+  const result=visiblePdfProposal('Invoice number: VISIBLE-1\nGrand total: 3,750.00 CZK\nPayment date: 2026-11-08','Invoice number: HIDDEN-2\nGrand total: 9,999.00 CZK\nPayment date: 2026-11-09');
+  assert.equal(result.fields.amount,3750);assert.equal(result.fields.number,'VISIBLE-1');assert.equal(result.fields.date,'2026-11-08');assert.ok(result.warnings.some(w=>w.includes('Textová vrstva')));
+});

@@ -1,28 +1,46 @@
-import { defineConfig, globalIgnores } from "eslint/config";
-import nextVitals from "eslint-config-next/core-web-vitals";
-import nextTs from "eslint-config-next/typescript";
-
-const eslintConfig = defineConfig([
-  ...nextVitals,
-  ...nextTs,
-  globalIgnores([
-    "dist/**",
-    ".vinext/**",
-    ".wrangler/**",
-    ".sites-runtime/**",
-    "outputs/**",
-    "work/**",
-  ]),
+import js from "@eslint/js";
+import ts from "typescript-eslint";
+import globals from "globals";
+export default ts.config(
   {
-    files: ["components/ui/**/*.{ts,tsx}", "hooks/use-mobile.ts"],
+    ignores: [
+      "dist/**",
+      ".next/**",
+      ".vinext/**",
+      ".wrangler/**",
+      ".sites-runtime/**",
+      "outputs/**",
+      "work/**",
+      "node_modules/**",
+      "public/ocr/**",
+      "public/pdf/**",
+      "components/ui/**",
+      "scripts/sites-env.mjs",
+      "vinext-env.d.ts",
+    ],
+  },
+  js.configs.recommended,
+  ...ts.configs.recommended,
+  {
+    languageOptions: { globals: { ...globals.browser, ...globals.node } },
     rules: {
-      // These files are vendored verbatim from shadcn@4.17.0. Keep the
-      // registry source intact while applying the stricter rules to Site code.
-      "@typescript-eslint/no-unused-vars": "off",
-      "react-hooks/purity": "off",
-      "react-hooks/set-state-in-effect": "off",
+      "@typescript-eslint/no-explicit-any": "off",
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
+      ],
+      "@typescript-eslint/no-require-imports": "off",
+      "no-control-regex": "off",
+      "no-empty": ["error", { allowEmptyCatch: true }],
     },
   },
-]);
-
-export default eslintConfig;
+  {
+    files: ["**/*.{js,mjs}"],
+    rules: {
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
+      ],
+    },
+  },
+);
