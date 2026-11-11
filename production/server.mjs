@@ -10,6 +10,7 @@ import { createAuth, escape } from "./auth.mjs";
 import { createOutbox } from "./outbox.mjs";
 import { scanFile } from "./scanner.mjs";
 import { migrateLegacy } from "./migrate-legacy.mjs";
+import { demoAccounts, prepareDemoAccounts } from "./demo-accounts.mjs";
 import {
   env,
   withIdentity,
@@ -17,6 +18,7 @@ import {
   requireActor,
   identity,
   command,
+  seedDemo,
 } from "../dist/api.mjs";
 
 const production = process.env.APP_ENV === "production";
@@ -161,7 +163,7 @@ Object.assign(env, {
   NATIVE_RUNTIME: "true",
   DEMO_MODE: String(demo),
   SEED_DEMO: process.env.SEED_DEMO || "false",
-  OWNER_EMAIL: process.env.OWNER_EMAIL || process.env.ADMIN_EMAIL,
+  OWNER_EMAIL: demo ? demoAccounts[0].email : process.env.OWNER_EMAIL || process.env.ADMIN_EMAIL,
   STORAGE_QUOTA_BYTES:
     process.env.STORAGE_QUOTA_BYTES || String(512 * 1024 * 1024),
   ...(!demo && process.env.OPENAI_API_KEY
@@ -174,6 +176,7 @@ Object.assign(env, {
     ? { ENCRYPT_EMAIL: mail.encrypt, EMAIL_ORIGIN: origin }
     : {}),
 });
+if (demo) await prepareDemoAccounts(db, auth, bucket, seedDemo);
 const contentTypes = {
   ".html": "text/html; charset=utf-8",
   ".js": "text/javascript",

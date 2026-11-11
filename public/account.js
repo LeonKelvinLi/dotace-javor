@@ -15,6 +15,28 @@ function language(value) {
 document
   .querySelectorAll("[data-lang]")
   .forEach((e) => e.addEventListener("click", () => language(e.dataset.lang)));
+document.querySelectorAll("[data-demo-email]").forEach((choice) => {
+  choice.addEventListener("change", () => {
+    document.getElementById("email").value = choice.dataset.demoEmail;
+    document.getElementById("password").value = choice.dataset.demoPassword;
+  });
+});
+document.getElementById("email")?.addEventListener("input", (e) => {
+  document.querySelectorAll("[data-demo-email]").forEach((choice) => {
+    choice.checked = choice.dataset.demoEmail === e.target.value.trim().toLowerCase();
+  });
+});
+document.getElementById("show-password")?.addEventListener("click", (e) => {
+  const input = document.getElementById("password");
+  const visible = input.type === "password";
+  input.type = visible ? "text" : "password";
+  const button = e.currentTarget;
+  button.setAttribute("aria-pressed", String(visible));
+  const label = button.querySelector("[data-cs]");
+  label.dataset.cs = visible ? "Skrýt" : "Zobrazit";
+  label.dataset.en = visible ? "Hide" : "Show";
+  label.textContent = label.dataset[document.documentElement.lang];
+});
 try {
   language(localStorage.getItem("dotace-language") === "en" ? "en" : "cs");
 } catch {

@@ -2,7 +2,7 @@
 
 ## Status and ownership
 
-The implementation is prepared for a separate client environment. The existing Render URL remains a public fictional demo. No new paid service has been ordered. Do not remove authentication from a client deployment or put real records in the demo.
+The implementation is prepared for a separate client environment. The existing Render URL remains a public fictional demo with separate federation and FK Háj organization training accounts, prefilled from the login page. Their credentials are public; they demonstrate server-enforced roles, not confidential access. No new paid service has been ordered. The client deployment will use Leon's existing Render My Workspace; new paid setup remains pending Filip's approval. Do not remove authentication from a client deployment or put real records in the demo.
 
 **Local verification does not establish a working production provider account.** Before launch, the client must own the infrastructure, approve costs, configure domains and supply the current business policies. The external acceptance checklist below is a release gate, not a claim that those checks already passed.
 
