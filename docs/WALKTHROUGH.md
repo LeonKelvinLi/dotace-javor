@@ -1,50 +1,33 @@
-# Review walkthrough
+# Using Dotace Javor
 
-Allow about ten minutes. Use only the fictional seeded records and fictional files. The UI is Czech. The initial hosted site is owner-private and requires ChatGPT sign-in; do not share a live invitation token in the source repository or screenshots.
+Open https://dotace-javor-99x6.onrender.com/ and sign in with your app email and password. The app starts in Czech; the **English** button changes the interface and remembers your preference. Original document content remains in its original language.
 
-## 1. Federation overview
+## Try the sample first
 
-Sign in and open the overview. Inspect organizations, the review queue and contracts. Filter contracts by year, program and organization. Open one organization to see its contracts, contacts, representatives and members. Create a fictional organization and create its contract from that organization's detail.
+1. Click **Vyzkoušet ukázkové vyúčtování / Try the sample settlement**.
+2. Follow the green next-step panel. It opens the next expense needing attention.
+3. Document reading runs automatically. Compare the details with the original, explain any warning, check the confirmation box, then **Uložit doklad / Save expense**.
+4. When all expenses are checked, the next action becomes **Zkontrolovat a odeslat / Review and submit**. Read the declaration before submitting.
+5. As the federation administrator, use **Otevřít další výdaj ke kontrole / Review next expense**. Accept, reject with a reason, or request more information.
+6. Finish the review with a conclusion, then open **Souhrn / Summary** and **Stáhnout PDF / Download PDF**.
 
-Upload a fictional signed-contract PDF or image, plus instructions or an ASP decision if desired. Open the stored attachment again after reload. The application stores documents; it does not sign contracts or claim that fictional/sample conditions are current law. The explicit **ARES** action can look up a public organization's name/address by IČO; not-found/unavailable results allow manual entry and must not fabricate details. Keep all application test records fictional.
+Use fictional records for practice. Real submissions and approval decisions belong to the authorized organization and federation reviewers.
 
-## 2. Access
+## Set up your own workspace
 
-Create an organization invitation and copy its link. This creates an application invitation, **not an email**. To test another identity, the site owner must first permit that person through the separate Sites sharing policy. Redeem the token while signed in as that permitted identity. Confirm that organization membership, rather than a role selected in the browser, determines access.
+1. Click **Založit vlastní organizaci / Set up your own organization**. Enter its name and eight-digit company ID. You can attach its document for autofill or explicitly look it up in ARES. Check the result and save.
+2. The saved organization opens automatically. Click **Založit smlouvu / Create contract**, enter the grant and dates, then save. Optional cash/payment conditions are collapsed under **Další podmínky a hotovost / Other conditions and cash payments**.
+3. The saved contract opens automatically. Add the signed contract and relevant policy files under **Smlouva a pravidla / Contract and rules**.
+4. From the organization profile, **Pozvat člena / Invite member** creates an invitation link. Copy and share it with the intended recipient yourself; the app does not send an email. The recipient sets up their own account with that link.
+5. The organization adds its expenses and submits them. You review them from the **Ke kontrole / To review** filter.
 
-The first-user administrator bootstrap is appropriate only while the deployment remains owner-private. A single owner login cannot independently prove a multi-user sharing or invitation flow; record that limitation if a second permitted identity is unavailable.
+## What automatic reading does
 
-## 3. Prepare a settlement
+Every supported uploaded receipt runs through browser OCR. Known details are filled automatically; saved values and manual corrections take priority. Check the original before saving. A missing or ambiguous payment date must be supplied from payment evidence. An ordinary letter will not become a fabricated invoice. Foreign currency needs an explicit documented CZK conversion.
 
-As an authorized organization user, open a contract and its settlement. Upload a fictional PDF or photo. Review extracted PDF text/suggestions when available, and enter or correct supplier, document number, description, payment date, category, document amount and claimed amount.
+PDF/image uploads are limited to 10 MB and PDFs to 10 pages. A failure leaves the form available for correction and retry. Optional OpenAI analysis and adviser integration remain unconfigured and unverified; local OCR works independently.
 
-For a scanned PDF/photo, the browser attempts local OCR. Review the recognized text and suggestions; manual entry is the fallback when recognition fails or is inaccurate. A displayed result must name the extraction method without presenting it as verified eligibility. Optional AI extraction is implemented but remains unconfigured/unverified until the server key is securely provisioned; after that, test it separately with a fictional file and confirm all proposed fields. Open the saved document and confirm the expense remains under the selected contract after reload.
-
-Try these three contrasting cases:
-
-| Case | Expected behavior |
-| --- | --- |
-| Full claim, organization recipient, complete metadata/attachment | Can be marked checked. |
-| Partial claim or an individual recipient | Needs a meaningful explanation and “checked with comment.” |
-| Another company's document | Cannot be confirmed for claiming; exclude it. |
-
-A receipt without a named recipient should not trigger a recipient warning. A missing attachment or a claimed amount larger than the document amount should prevent submission.
-
-## 4. Submission and guidance
-
-Inspect category totals and use CSV export. Try submitting with an unchecked or unexplained warning item; correct it, acknowledge the beneficiary declaration, and submit. The federation's review queue should now include this contract, and normal organization editing should no longer be possible.
-
-Ask the adviser whether a coffee machine can be claimed. Without a configured key, confirm that the response identifies the reference-guide fallback and does not pretend to call an LLM. After secure AI configuration, the implemented `/api/adviser` route can use the contract and its uploaded policy documents; test that separately and inspect its named sources. Both modes must state uncertainty where evidence is insufficient and leave the final decision to SFJ.
-
-Cash payments are a policy conflict: the training cost extracts require bank payment, while the later call accepts some small cash expenses. The application should make the conflict visible. A configured review threshold must not be described as an agreed statutory limit.
-
-## 5. Federation review and report
-
-As a federation administrator, open the submitted contract. Filter items with comments or missing attachments. Accept an item; reject another with a reason; request a supplement on a third. Check the persistent item history.
-
-As the organization, answer the supplement request with an explanation/corrected evidence and resubmit through the allowed flow. As federation, verify the response remains in history, make the remaining decisions, and enter the final conclusion and reduction. Review the suggested rejected-item total before confirming the amount.
-
-Open the summary and click **Stáhnout PDF** to download the A4 report. Open the downloaded file to print it. Check organization, contract, three cost groups, claimed amounts, grant, reduction and final conclusion. This is a new report design; the original Excel template was not supplied.
+Partial claims need an explanation. Missing attachments and invalid amounts block submission. Another company's expense cannot be made eligible by adding a comment. Cash rules must come from the applicable contract and confirmed federation policy.
 
 ## Acceptance checklist
 

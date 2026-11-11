@@ -1,4 +1,5 @@
 "use client";
+import { useLanguage } from "@/components/language";
 
 import { useEffect, useRef, useState } from "react";
 import {
@@ -12,6 +13,7 @@ import type { PDFDocumentLoadingTask, PDFDocumentProxy } from "pdfjs-dist";
 import type { StoredFile } from "@/lib/model";
 
 export default function DotaceDocument({ file }: { file: StoredFile }) {
+  const { t } = useLanguage();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [document, setDocument] = useState<PDFDocumentProxy | null>(null);
@@ -140,19 +142,18 @@ export default function DotaceDocument({ file }: { file: StoredFile }) {
               <button
                 type="button"
                 className="icon-button"
-                aria-label="Předchozí strana PDF"
+                aria-label={t("Předchozí strana PDF")}
                 disabled={page === 1}
                 onClick={() => setPage((p) => p - 1)}
               >
                 <ChevronLeft size={16} />
               </button>
-              <span>
-                Strana {page} / {document.numPages}
+              <span>{t("Strana ")}{page}{t(" /")}{document.numPages}
               </span>
               <button
                 type="button"
                 className="icon-button"
-                aria-label="Další strana PDF"
+                aria-label={t("Další strana PDF")}
                 disabled={page === document.numPages}
                 onClick={() => setPage((p) => p + 1)}
               >
@@ -160,13 +161,11 @@ export default function DotaceDocument({ file }: { file: StoredFile }) {
               </button>
             </>
           ) : (
-            <span>{document ? "1 strana" : "Náhled PDF"}</span>
+            <span>{t(document ? "1 strana" : "Náhled PDF")}</span>
           )}
         </div>
         <a href={original} download={file.name} className="text-link">
-          <Download size={13} />
-          Originál
-        </a>
+          <Download size={13} />{t("Originál")}</a>
       </div>
       <div
         ref={containerRef}
@@ -176,28 +175,26 @@ export default function DotaceDocument({ file }: { file: StoredFile }) {
         {(loading || rendering) && !error && (
           <div className="pdf-loading" role="status">
             <Loader2 size={17} className="spin" />
-            <span key={String(loading)}>{loading ? "Načítání dokladu…" : "Zobrazování strany…"}</span>
+            <span key={String(loading)}>{t(loading ? "Načítání dokladu…" : "Zobrazování strany…")}</span>
           </div>
         )}
         {error && (
           <div className="pdf-error" role="alert">
             <FileWarning size={24} />
-            <strong>Náhled není dostupný</strong>
-            <p>{error}</p>
+            <strong>{t("Náhled není dostupný")}</strong>
+            <p>{t(error)}</p>
             <a
               className="button secondary"
               href={original}
               target="_blank"
               rel="noreferrer"
-            >
-              Otevřít originál
-            </a>
+            >{t("Otevřít originál")}</a>
           </div>
         )}
         <canvas
           ref={canvasRef}
           role="img"
-          aria-label={`Doklad ${file.name}, strana ${page}`}
+          aria-label={t(`Doklad ${file.name}, strana ${page}`)}
           className={loading || error ? "pdf-canvas-hidden" : ""}
         />
       </div>

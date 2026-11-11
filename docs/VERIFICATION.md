@@ -121,3 +121,17 @@ Render deploy `dep-dbpo4a3rjlhs73af3cqg` reached live at 20:46:13 UTC on `c6d642
 ## Workspace UI refinement
 
 The accounting workspace was redesigned and deployed as `d14e1ec29c964ddb5ea1858348ea7f891cc49b90`, Render deploy `dep-dbpoms6gekts73emgiq0`. The design review, decisions and validation are recorded in `docs/UI-REVIEW.md`. The release simplifies navigation/copy, adds direct contract creation and status filtering, improves text contrast and phone layouts, places reading controls above the preview, and keeps receipt Save visible. Modal updates preserve typing focus. Existing extraction and backend checks (55 total), type checking and the production build pass. Live Chrome verified the dashboard, status filtering, automatic receipt filling, independent editor panes, visible Save and responsive overview without horizontal page overflow. Final live browser session captured no errors. Proof is in ignored `outputs/ui-refresh/`. The local QA server was stopped and browser viewport overrides were reset.
+
+
+## Cold-start simplification and native languages · 10 November, evening
+
+- Reproduced the recurring live page failure by navigating Organizations → FK Háj → contract with Chrome translation active. The console reported a React `removeChild` NotFoundError in a reused paragraph subtree.
+- Added a native Czech/English language switch (Czech default, persisted choice), including Render sign-in. The app declares `translate="no"` and keys page content by the opened view/record so translation does not rewrite React-owned text.
+- Added role-specific first-use guidance, explicit contract row actions and a next-step panel before contract totals. The panel advances through upload, expense checks, submission, federation review and report download. Optional contract conditions are collapsed; duplicate submit/approve actions and an empty-list upload button were removed.
+- Saving an organization opens its profile; saving a contract opens its settlement. Expense review uses one confirmation checkbox. Editing expense data clears the confirmation and requires a new check.
+- Fixed extraction of ASCII Czech sample labels (`Castka`, `Datum uhrady`, `Zpusob uhrady`) and added an extraction regression test.
+- Automated: 36 unit/regression tests, 14 backend integration scenarios and 6 Render-host scenarios passed. Production build and TypeScript passed. An intermediate host-test start overlapped a rebuild and failed; rerunning against the completed build passed all 6 scenarios.
+- Visible Chrome, isolated local Render gateway: fresh sign-in and native English; sample expense OCR; full claim check/save; partial claim explanation; submit; accept both fictional expenses; approve; reload; PDF download. The two-page downloaded PDF contains both receipts, the partial-claim explanation and the review conclusion.
+- Created a fictional contract using the English form and confirmed it opens immediately after save. Uploaded `ocr-fixture.png`; automatic OCR filled `TEST-2026-001`, supplier, company ID, payment date, description and 1,234.56 CZK; confirmed and saved the expense successfully. No production grant decisions or invitations were made.
+- Inspected the desktop and 390×844 layout. The review action was moved above the totals after the mobile inspection.
+- OpenAI configuration and real provider calls remain outside this verified change. Native language labels do not translate original uploaded documents or user-entered text intentionally.

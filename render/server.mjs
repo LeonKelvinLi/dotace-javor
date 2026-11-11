@@ -26,7 +26,42 @@ const identity=email=>({'oai-authenticated-user-id':`render:${email}`,'oai-authe
 const seed=await mf.dispatchFetch('http://localhost/api/app',{headers:identity(adminEmail)});if(!seed.ok)throw new Error(`Owner initialization failed (${seed.status}): ${await seed.text()}`);
 const digest=s=>createHash('sha256').update(s).digest('hex');
 const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-function loginPage(error='',invite=''){return `<!doctype html><html lang="cs"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Dotace · Přihlášení</title><style>*{box-sizing:border-box}body{margin:0;background:#f5f5f2;color:#27343a;font:16px system-ui;display:grid;min-height:100vh;place-items:center}main{width:min(420px,92vw);padding:36px;background:white;border:1px solid #e4e8e1;border-radius:6px;box-shadow:none}.login-brand{font-weight:750;letter-spacing:.08em;margin-bottom:30px;font-size:14px}.login-brand span{font-weight:400;letter-spacing:0;color:#7c8789}h1{font-size:28px;margin:0 0 8px}p{line-height:1.5;color:#6c7971}label{display:block;font-size:14px;margin:20px 0 8px}input,button{width:100%;padding:13px;border:1px solid #d8dfd7;border-radius:4px;font:inherit}button{margin-top:24px;background:#29363c;color:white;cursor:pointer}.error{color:#a13e34}small{display:block;margin-top:20px;color:#7b867f}</style><main><div class="login-brand">JAVOR<span> / Evidence dotací</span></div><h1>${invite?'Vytvořit přístup':'Přihlášení'}</h1><p>${invite?'Vytvořte si přístup k pozvánce.':'Přihlaste se do svého pracovního prostoru.'}</p>${error?`<p class="error" role="alert">${escape(error)}</p>`:''}<form method="post" action="/auth/${invite?'register':'login'}"><input type="hidden" name="invite" value="${escape(invite)}"><label for="email">E-mail</label><input id="email" name="email" type="email" autocomplete="username" required><label for="password">Heslo${invite?' (alespoň 12 znaků)':''}</label><input id="password" name="password" type="password" autocomplete="${invite?'new-password':'current-password'}" minlength="${invite?'12':'1'}" maxlength="256" required><button>${invite?'Vytvořit přístup':'Přihlásit se'}</button></form><small>Pilot · fiktivní údaje. Přístup poskytuje správce SFJ.</small></main></html>`}
+function loginPage(error = '', invite = '') {
+  const copy = (cs, en, tag = 'span') => `<${tag} data-cs="${escape(cs)}" data-en="${escape(en)}">${escape(cs)}</${tag}>`;
+  const title = invite ? ['Vytvořit přístup', 'Create your account'] : ['Přihlášení', 'Sign in'];
+  const errors = {
+    'E-mail nebo heslo není správné.': 'The email or password is incorrect.',
+    'Pozvánka není platná, účet již existuje nebo je heslo příliš krátké.': 'The invitation is invalid, an account already exists, or the password is too short.',
+  };
+  return `<!doctype html><html lang="cs" translate="no"><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Dotace · Javor</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f5f5f2;color:#27343a;font:16px system-ui;display:grid;min-height:100vh;place-items:center}
+main{width:min(420px,92vw);padding:32px;background:white;border:1px solid #d8dfd7;border-radius:6px}.login-brand{font-weight:750;letter-spacing:.08em;margin:24px 0;font-size:14px}
+h1{font-size:28px;margin:0 0 8px}p{line-height:1.5;color:#54645b}label{display:block;font-size:14px;margin:20px 0 8px}input,button{width:100%;padding:13px;border:1px solid #cdd5ce;border-radius:4px;font:inherit}
+button{margin-top:24px;background:#29363c;color:white;cursor:pointer}.error{color:#a13e34}small{display:block;margin-top:20px;color:#657168}.languages{display:flex;gap:8px;justify-content:flex-end}.languages button{width:auto;margin:0;padding:6px 9px;background:white;color:#27343a;font-size:12px}.languages button[aria-pressed=true]{background:#edf4ef;border-color:#7c9d8a}
+</style><main><div class="languages" role="group" aria-label="Language / Jazyk"><button type="button" data-lang="cs" aria-pressed="true">Čeština</button><button type="button" data-lang="en" aria-pressed="false">English</button></div>
+<div class="login-brand">JAVOR</div>${copy(...title, 'h1')}
+${copy(invite ? 'Přijměte pozvánku a nastavte si heslo.' : 'Přihlaste se e-mailem a heslem svého účtu.', invite ? 'Accept your invitation and choose a password.' : 'Use your account email and password.', 'p')}
+${error ? `<p class="error" role="alert">${copy(error, errors[error] || error)}</p>` : ''}
+<form method="post" action="/auth/${invite ? 'register' : 'login'}">
+<input type="hidden" name="invite" value="${escape(invite)}"><label for="email">E-mail</label><input id="email" name="email" type="email" autocomplete="username" required>
+<label for="password">${copy(invite ? 'Heslo (alespoň 12 znaků)' : 'Heslo', invite ? 'Password (at least 12 characters)' : 'Password')}</label>
+<input id="password" name="password" type="password" autocomplete="${invite ? 'new-password' : 'current-password'}" minlength="${invite ? '12' : '1'}" maxlength="256" required>
+<button>${copy(invite ? 'Vytvořit přístup' : 'Přihlásit se', invite ? 'Create account' : 'Sign in')}</button></form>
+${copy('Přístup vám poskytne správce federace nebo vaší organizace.', 'Your federation or organization administrator can invite you.', 'small')}
+<script>
+function chooseLanguage(language) {
+ document.documentElement.lang = language;
+ document.querySelectorAll('[data-cs]').forEach(element => { element.textContent = element.dataset[language]; });
+ document.querySelectorAll('[data-lang]').forEach(button => { button.setAttribute('aria-pressed', String(button.dataset.lang === language)); });
+ try { localStorage.setItem('dotace-language', language); } catch {}
+}
+document.querySelectorAll('[data-lang]').forEach(button => { button.addEventListener('click', () => chooseLanguage(button.dataset.lang)); });
+try { if (localStorage.getItem('dotace-language') === 'en') chooseLanguage('en'); } catch {}
+</script></main></html>`;
+}
+
 const attempts=new Map();
 const server=http.createServer(async(req,res)=>{try{
  const origin=process.env.RENDER_EXTERNAL_URL||`http://${req.headers.host}`;const url=new URL(req.url,origin);

@@ -47,7 +47,7 @@ export function parsePaymentDate(value: string): string | undefined {
 }
 export function documentTotal(text: string): { sourceAmount?: number; currency?: string } {
   // Prioritize the actual payable total over subtotal, VAT, or a running total.
-  const labels = ['celkem k úhradě|částka k úhradě|k úhradě|total (?:amount )?(?:due|payable)|amount due|balance due|grand total', 'celkem včetně DPH|celková částka|výše dotace|částka dotace|grant amount|total incl(?:uding)?\\.? (?:VAT|tax)', 'celkem|total'];
+  const labels = ['celkem k [úu]hrad[ěe]|[čc][áa]stka k [úu]hrad[ěe]|k [úu]hrad[ěe]|total (?:amount )?(?:due|payable)|amount due|balance due|grand total', 'celkem v[čc]etn[ěe] DPH|celkov[áa] [čc][áa]stka|výše dotace|částka dotace|grant amount|total incl(?:uding)?\\.? (?:VAT|tax)', 'celkem|total|[čc][áa]stka'];
   for (const label of labels) {
     const values = [...text.matchAll(new RegExp('(?:^|\\n)[ \\t]*(?:'+label+')[ \\t]*[:=]?[ \\t]*([^\\n]+)', 'gim'))].map(m => {
       const raw = m[1].trim();
@@ -85,14 +85,14 @@ export function parseDocumentText(text: string, mode: ExtractionMode = 'receipt'
   const supplierIco = supplierBlock ? matchLine(supplierBlock, /(?:IČO|IČ|ICO|company (?:id|registration number))\s*:?\s*(\d[\d ]{6,12}\d)/i)?.replace(/\s/g,'') : !/(?:odběratel|bill to|buyer|customer)/i.test(text) ? ico : undefined;
   if (supplierIco?.length === 8) f.supplierIco = supplierIco;
   const description = matchLine(text, /(?:^|\n)[ \t]*(?:popis(?: nákladu| výdaje)?|předmět plnění|fakturujeme vám|účel|description|service description|purpose)\s*:?\s*([^\n\r]+)/i); if (description) f.description = description;
-  const dateText = matchLine(text, /(?:^|\n)[ \t]*(?:datum (?:úhrady|platby)|uhrazeno(?: dne)?|payment date|date paid|paid on)\s*:?\s*([^\n\r]+)/i);
+  const dateText = matchLine(text, /(?:^|\n)[ \t]*(?:datum (?:[úu]hrady|platby)|uhrazeno(?: dne)?|payment date|date paid|paid on)\s*:?\s*([^\n\r]+)/i);
   if (dateText) { const date = parsePaymentDate(dateText); if (date) f.date = date; }
-  if (/(?:způsob úhrady|forma úhrady|platba|payment method)\s*:?\s*(?:převod|bank|bezhotovost|wire|card|credit card|debit card)/i.test(text)) f.payment = 'bank';
-  else if (/(?:způsob úhrady|forma úhrady|platba|payment method)\s*:?\s*(?:hotov|cash)/i.test(text)) f.payment = 'cash';
+  if (/(?:zp[ůu]sob [úu]hrady|forma [úu]hrady|platba|payment method)\s*:?\s*(?:p[řr]evod|bank|bezhotovost|wire|card|credit card|debit card)/i.test(text)) f.payment = 'bank';
+  else if (/(?:zp[ůu]sob [úu]hrady|forma [úu]hrady|platba|payment method)\s*:?\s*(?:hotov|cash)/i.test(text)) f.payment = 'cash';
   const content = String(description ?? '').toLowerCase();
   if (/(osvč|služb|nájem|ubytov|doprava|trenérsk|service|rent|accommodation|transport|coaching)/i.test(content)) f.category = 'services';
   else if (/(mzda|mzdy|odvod|plat zaměstnance|salary|wages|payroll)/i.test(content)) f.category = 'wages';
-  else if (/(materiál|míč|hole|dres|material|equipment|jersey|balls)/i.test(content)) f.category = 'materials';
+  else if (/(materi[áa]l|m[ií][čc]|hole|dres|material|equipment|jersey|balls)/i.test(content)) f.category = 'materials';
   const recipient = matchLine(text, /(?:^|\n)[ \t]*(?:odběratel|objednatel|bill to|buyer|customer)\s*:?\s*([^\n\r]+)/i);
   if (recipient) f.recipientName = recipient;
   return f;

@@ -48,6 +48,7 @@ import Extraction from "@/components/dotace-extract";
 import { parsePaymentDate, type ExtractionContext } from "@/lib/extraction";
 import { mergeAutofill, duplicateReceipt, type AutofillState } from "@/lib/autofill";
 import DocumentPreview from "@/components/dotace-document";
+import { LanguageProvider, LanguageSwitch, useLanguage } from "@/components/language";
 import {
   AppState,
   AuditEvent,
@@ -168,6 +169,11 @@ async function jsonRequest<T = Record<string, unknown>>(
 }
 
 export default function DotaceApp() {
+  return <LanguageProvider><Workspace /></LanguageProvider>;
+}
+
+function Workspace() {
+  const { t } = useLanguage();
   const [state, setState] = useState<AppState | null>(null);
   const [error, setError] = useState("");
   const [unauthorized, setUnauthorized] = useState(false);
@@ -406,28 +412,27 @@ export default function DotaceApp() {
       <div className="welcome">
         <div className="welcome-brand">
           <Leaf size={34} />
-          <span>
-            Dotace<span className="muted"> / Javor</span>
+          <span>{t("Dotace")}<span className="muted">{t(" / Javor")}</span>
           </span>
         </div>
         {error ? (
           <>
             <h1>
-              {inviteToken
+              {t(inviteToken
                 ? "Pozvánka do organizace"
                 : unauthorized
                   ? "Přihlaste se do svého prostoru"
-                  : "Aplikaci se nepodařilo načíst"}
+                  : "Aplikaci se nepodařilo načíst")}
             </h1>
             <p>
-              {inviteToken
+              {t(inviteToken
                 ? "Přijměte osobní pozvánku pod přihlášeným účtem se stejným e-mailem, pro který byla vytvořena."
-                : error}
+                : error)}
             </p>
             {inviteToken && !unauthorized && (
               <>
                 <div className="notice error" role="alert">
-                  {error}
+                  {t(error)}
                 </div>
                 <button
                   className="button primary"
@@ -445,9 +450,7 @@ export default function DotaceApp() {
                       .catch(() => {})
                   }
                 >
-                  <Users size={16} />
-                  Přijmout pozvánku
-                </button>
+                  <Users size={16} />{t("Přijmout pozvánku")}</button>
               </>
             )}
             {unauthorized ? (
@@ -455,25 +458,22 @@ export default function DotaceApp() {
                 className="button primary"
                 href={`/signin-with-chatgpt?return_to=${encodeURIComponent(inviteToken ? "/?invite=" + inviteToken : "/")}`}
                 target="_top"
-              >
-                Přihlásit přes ChatGPT <ArrowRight size={16} />
+              >{t("Přihlásit přes ChatGPT ")}<ArrowRight size={16} />
               </a>
             ) : (
               !inviteToken && (
                 <button
                   className="button primary"
                   onClick={() => void load().catch(() => {})}
-                >
-                  Zkusit znovu
-                </button>
+                >{t("Zkusit znovu")}</button>
               )
             )}
           </>
         ) : (
           <>
             <Loader2 className="spin" size={28} />
-            <h1>Připravujeme váš přehled</h1>
-            <p>Načítání smluv a uložených dokladů…</p>
+            <h1>{t("Připravujeme váš přehled")}</h1>
+            <p>{t("Načítání smluv a uložených dokladů…")}</p>
           </>
         )}
       </div>
@@ -490,17 +490,17 @@ export default function DotaceApp() {
             goHome("contracts");
           }}
         >
-          <span className="brand-icon" translate="no">J</span>
-          <span><strong translate="no">JAVOR</strong><span className="brand-sub">Evidence dotací</span></span>
+          <span className="brand-icon" translate="no">{t("J")}</span>
+          <span><strong translate="no">{t("JAVOR")}</strong><span className="brand-sub">{t("Evidence dotací")}</span></span>
         </a>
-        <div className="workspace-label">Evidence</div>
-        <nav aria-label="Hlavní navigace">
+        <div className="workspace-label">{t("Evidence")}</div>
+        <nav aria-label={t("Hlavní navigace")}>
           <button
             className={`nav-item ${view === "contracts" ? "active" : ""}`}
             onClick={() => goHome("contracts")}
           >
             <LayoutDashboard size={18} />
-            <span>Smlouvy</span>
+            <span>{t("Smlouvy")}</span>
             <span className="nav-count">{state.contracts.length}</span>
           </button>
           <button
@@ -508,42 +508,42 @@ export default function DotaceApp() {
             onClick={() => goHome("organizations")}
           >
             <Building2 size={18} />
-            <span>Organizace</span>
+            <span>{t("Organizace")}</span>
           </button>
           <button
             className={`nav-item ${view === "activity" ? "active" : ""}`}
             onClick={() => goHome("activity")}
           >
             <History size={18} />
-            <span>Historie</span>
+            <span>{t("Historie")}</span>
           </button>
         </nav>
         <div className="sidebar-bottom">
-          <button className="sidebar-help" onClick={()=>setModal({type:"adviser"})}><BookOpen size={17}/><span>Pravidla a nápověda</span></button>
+          <button className="sidebar-help" onClick={()=>setModal({type:"adviser"})}><BookOpen size={17}/><span>{t("Pravidla a nápověda")}</span></button>
           <button
             className="feedback-link"
             onClick={() => setModal({ type: "feedback" })}
           >
             <MessageSquare size={16} />
-            <span>Zpětná vazba</span>
+            <span>{t("Zpětná vazba")}</span>
           </button>
           <div className="profile">
             <span className="avatar">
-              {state.user.displayName.slice(0, 2).toUpperCase()}
+              {t(state.user.displayName.slice(0, 2).toUpperCase())}
             </span>
             <span>
-              <strong>{state.user.displayName}</strong>
+              <strong>{t(state.user.displayName)}</strong>
               <small>
-                {federation
+                {t(federation
                   ? "Administrátor SFJ"
                   : state.membership.role === "org_admin"
                     ? "Správce organizace"
-                    : "Člen organizace"}
+                    : "Člen organizace")}
               </small>
             </span>
             <a
-              aria-label="Odhlásit"
-              title="Odhlásit"
+              aria-label={t("Odhlásit")}
+              title={t("Odhlásit")}
               href="/signout-with-chatgpt?return_to=/"
               target="_top"
             >
@@ -556,23 +556,22 @@ export default function DotaceApp() {
         <header className="topbar no-print">
           <div className="breadcrumb">
             <Leaf size={15} />
-            <span>Sportovní federace Javor</span>
+            <span>{t("Sportovní federace Javor")}</span>
             <ChevronRight size={14} />
             <strong>
-              {contract
+              {t(contract
                 ? contract.number
                 : view === "contracts"
                   ? "Smlouvy a vyúčtování"
                   : view === "organizations"
                     ? "Organizace a lidé"
-                    : "Historie"}
+                    : "Historie")}
             </strong>
           </div>
           <div className="top-actions">
+            <LanguageSwitch />
             <span className="pilot">
-              <span />
-              Pilot · fiktivní data
-            </span>
+              <span />{t("Pilot · fiktivní data")}</span>
             {federation && (
               <label className="preview-switch">
                 <input
@@ -580,20 +579,18 @@ export default function DotaceApp() {
                   checked={preview}
                   onChange={(e) => setPreview(e.target.checked)}
                 />
-                <Eye size={14} />
-                Pohled organizace (náhled)
-              </label>
+                <Eye size={14} />{t("Pohled organizace (náhled)")}</label>
             )}
           </div>
         </header>
-        <main className="main-content">
+        <main className="main-content" key={contractId ? `contract-${contractId}` : `${view}-${organizationId}`}>
           {error && (
             <div className="notice error no-print" role="alert">
               <TriangleAlert size={18} />
-              <div style={{ whiteSpace: "pre-line" }}>{error}</div>
+              <div style={{ whiteSpace: "pre-line" }}>{t(error)}</div>
               <button
                 className="icon-button"
-                aria-label="Zavřít upozornění"
+                aria-label={t("Zavřít upozornění")}
                 onClick={() => setError("")}
               >
                 <X size={16} />
@@ -604,11 +601,8 @@ export default function DotaceApp() {
             <div className="notice warning no-print">
               <Users size={19} />
               <div>
-                <strong>Pozvánka do organizace</strong>
-                <p>
-                  Po přijetí získáte oprávnění uvedená v pozvánce pro přihlášený
-                  e-mail {state.user.email}.
-                </p>
+                <strong>{t("Pozvánka do organizace")}</strong>
+                <p>{t("Po přijetí získáte oprávnění uvedená v pozvánce pro přihlášený e-mail ")}{t(state.user.email)}{t(".")}</p>
               </div>
               <button
                 className="button primary"
@@ -625,12 +619,10 @@ export default function DotaceApp() {
                     })
                     .catch(() => {})
                 }
-              >
-                Přijmout pozvánku
-              </button>
+              >{t("Přijmout pozvánku")}</button>
               <button
                 className="icon-button"
-                aria-label="Skrýt pozvánku"
+                aria-label={t("Skrýt pozvánku")}
                 onClick={() => setInviteToken("")}
               >
                 <X size={16} />
@@ -639,10 +631,7 @@ export default function DotaceApp() {
           )}
           {preview && (
             <div className="preview-notice no-print">
-              <Eye size={14} />
-              Náhled organizace pro administrátora SFJ. Přístupová práva ověřuje
-              server.
-            </div>
+              <Eye size={14} />{t("Náhled organizace pro administrátora SFJ. Přístupová práva ověřuje server.")}</div>
           )}
           {contract && organization ? (
             <>
@@ -650,24 +639,20 @@ export default function DotaceApp() {
                 className="back-link no-print"
                 onClick={() => goHome("contracts")}
               >
-                <ArrowLeft size={15} />
-                Všechny smlouvy
-              </button>
+                <ArrowLeft size={15} />{t("Všechny smlouvy")}</button>
               <div className="page-heading">
                 <div>
                   <div className="eyebrow">
-                    {organization.name} <span> / {contract.year}</span>
+                    {t(organization.name)} <span>{t(" /")}{contract.year}</span>
                   </div>
                   <h1>
-                    {contract.number}
+                    {t(contract.number)}
                     <span className={`badge ${contract.status}`}>
-                      {statusNames[contract.status]}
+                      {t(statusNames[contract.status])}
                     </span>
                   </h1>
                   <p>
-                    {contract.program} <span className="dot-separator">·</span>{" "}
-                    Vyúčtování dotace
-                  </p>
+                    {t(contract.program)} <span className="dot-separator">{t("·")}</span>{t(" ")}{t("Vyúčtování dotace")}</p>
                 </div>
                 <div className="heading-actions no-print">
                   <button
@@ -675,7 +660,7 @@ export default function DotaceApp() {
                     onClick={() => setModal({ type: "adviser" })}
                   >
                     <BookOpen size={16} />
-                    <span>Pravidla</span>
+                    <span>{t("Pravidla")}</span>
                   </button>
                   {federation && !preview && editable && (
                     <button
@@ -688,18 +673,7 @@ export default function DotaceApp() {
                         })
                       }
                     >
-                      <SlidersHorizontal size={16} />
-                      Upravit smlouvu
-                    </button>
-                  )}
-                  {canSubmit && (
-                    <button
-                      className="button primary"
-                      onClick={() => setModal({ type: "submit" })}
-                    >
-                      <Send size={16} />
-                      Zkontrolovat a odeslat
-                    </button>
+                      <SlidersHorizontal size={16} />{t("Upravit smlouvu")}</button>
                   )}
                   {reviewing && (
                     <>
@@ -707,20 +681,22 @@ export default function DotaceApp() {
                         className="button secondary"
                         onClick={() => setModal({ type: "return" })}
                       >
-                        <RotateCcw size={16} />
-                        Vrátit k opravě
-                      </button>
-                      <button
-                        className="button primary"
-                        onClick={() => setModal({ type: "approve" })}
-                      >
-                        <ShieldCheck size={16} />
-                        Uzavřít kontrolu
-                      </button>
+                        <RotateCcw size={16} />{t("Vrátit k opravě")}</button>
                     </>
                   )}
                 </div>
               </div>
+              <NextStep
+                contract={contract}
+                items={contractItems}
+                canReview={Boolean(reviewing)}
+                canSubmit={Boolean(canSubmit)}
+                onAdd={() => setModal({ type: "item" })}
+                onOpen={(item) => setModal({ type: "item", item })}
+                onSubmit={() => setModal({ type: "submit" })}
+                onApprove={() => setModal({ type: "approve" })}
+                onSummary={() => setTab("summary")}
+              />
               <div className="contract-metrics">
                 <Metric
                   label="Přidělená dotace"
@@ -757,7 +733,7 @@ export default function DotaceApp() {
               <div
                 className="tabs no-print"
                 role="tablist"
-                aria-label="Detail smlouvy"
+                aria-label={t("Detail smlouvy")}
               >
                 {(
                   [
@@ -778,7 +754,7 @@ export default function DotaceApp() {
                     }}
                   >
                     <Icon size={16} />
-                    {label}
+                    {t(label)}
                     {key === "items" && <span>{contractItems.length}</span>}
                   </button>
                 ))}
@@ -787,62 +763,52 @@ export default function DotaceApp() {
                 <section className="panel ledger no-print">
                   <div className="panel-header">
                     <div>
-                      <h2>Doklady</h2>
-                      <p>Vyberte doklad k úpravě nebo přidejte nový.</p>
+                      <h2>{t("Doklady")}</h2>
+                      <p>{t("Vyberte doklad k úpravě nebo přidejte nový.")}</p>
                     </div>
                     <div className="row-actions">
                       <button className="button secondary" onClick={exportCsv}>
-                        <Download size={15} />
-                        CSV export
-                      </button>
+                        <Download size={15} />{t("CSV export")}</button>
                       {editable && (
                         <button
                           className="button primary"
                           onClick={() => setModal({ type: "item" })}
                         >
-                          <Plus size={17} />
-                          Přidat doklad
-                        </button>
+                          <Plus size={17} />{t("Přidat doklad")}</button>
                       )}
                     </div>
                   </div>
                   {contract.status === "changes" && (
                     <div className="inline-banner warning">
-                      <TriangleAlert size={17} />
-                      SFJ vrátila vyúčtování k doplnění. Podrobnosti najdete v
-                      historii.
-                    </div>
+                      <TriangleAlert size={17} />{t("SFJ vrátila vyúčtování k doplnění. Podrobnosti najdete v historii.")}</div>
                   )}
                   {contract.status === "submitted" && orgMode && (
                     <div className="inline-banner">
-                      <ShieldCheck size={17} />
-                      Vyúčtování je odeslané. U vyžádaných doplnění můžete
-                      přidat odpověď a přílohy.
-                    </div>
+                      <ShieldCheck size={17} />{t("Vyúčtování je odeslané. U vyžádaných doplnění můžete přidat odpověď a přílohy.")}</div>
                   )}
                   <div className="table-toolbar">
                     <div className="search-field">
                       <Search size={16} />
                       <input
-                        aria-label="Hledat doklad"
-                        placeholder="Číslo, dodavatel nebo popis dokladu"
+                        aria-label={t("Hledat doklad")}
+                        placeholder={t("Číslo, dodavatel nebo popis dokladu")}
                         value={query}
                         onChange={(e) => setQuery(e.target.value)}
                       />
                     </div>
                     <select
-                      aria-label="Filtr dokladů"
+                      aria-label={t("Filtr dokladů")}
                       value={itemFilter}
                       onChange={(e) => setItemFilter(e.target.value)}
                     >
-                      <option value="all">Všechny doklady</option>
-                      <option value="unchecked">Nezkontrolované</option>
-                      <option value="warnings">S upozorněním</option>
-                      <option value="comments">S komentářem</option>
-                      <option value="missing">Bez přílohy</option>
-                      <option value="supplement">Vyžádané doplnění</option>
+                      <option value="all">{t("Všechny doklady")}</option>
+                      <option value="unchecked">{t("Nezkontrolované")}</option>
+                      <option value="warnings">{t("S upozorněním")}</option>
+                      <option value="comments">{t("S komentářem")}</option>
+                      <option value="missing">{t("Bez přílohy")}</option>
+                      <option value="supplement">{t("Vyžádané doplnění")}</option>
                       {itemFilter === "sample" && (
-                        <option value="sample">Náhodný vzorek</option>
+                        <option value="sample">{t("Náhodný vzorek")}</option>
                       )}
                     </select>
                     {reviewing && (
@@ -850,14 +816,12 @@ export default function DotaceApp() {
                         className="button text-button"
                         onClick={randomSample}
                       >
-                        <Eye size={16} />
-                        Namátková kontrola
-                      </button>
+                        <Eye size={16} />{t("Namátková kontrola")}</button>
                     )}
                   </div>
                   {reviewing && selected.length > 0 && (
                     <div className="selection-bar">
-                      <span>{selected.length} označených dokladů</span>
+                      <span>{selected.length}{t(" označených dokladů")}</span>
                       <button
                         className="button secondary"
                         disabled={busy}
@@ -871,15 +835,11 @@ export default function DotaceApp() {
                             .catch(() => {})
                         }
                       >
-                        <CheckCheck size={16} />
-                        Hromadně akceptovat
-                      </button>
+                        <CheckCheck size={16} />{t("Hromadně akceptovat")}</button>
                       <button
                         className="text-link"
                         onClick={() => setSelected([])}
-                      >
-                        Zrušit výběr
-                      </button>
+                      >{t("Zrušit výběr")}</button>
                     </div>
                   )}
                   <div className="table-scroll">
@@ -890,7 +850,7 @@ export default function DotaceApp() {
                             <th className="check-column">
                               <input
                                 type="checkbox"
-                                aria-label="Vybrat všechny viditelné doklady"
+                                aria-label={t("Vybrat všechny viditelné doklady")}
                                 checked={
                                   filteredItems.some(
                                     (i) =>
@@ -921,12 +881,12 @@ export default function DotaceApp() {
                               />
                             </th>
                           )}
-                          <th>Doklad / dodavatel</th>
-                          <th>Skupina nákladů</th>
-                          <th className="numeric">Uplatněno</th>
-                          <th>Příloha</th>
-                          <th>Organizace</th>
-                          <th>Kontrola SFJ</th>
+                          <th>{t("Doklad / dodavatel")}</th>
+                          <th>{t("Skupina nákladů")}</th>
+                          <th className="numeric">{t("Uplatněno")}</th>
+                          <th>{t("Příloha")}</th>
+                          <th>{t("Organizace")}</th>
+                          <th>{t("Kontrola SFJ")}</th>
                           <th />
                         </tr>
                       </thead>
@@ -940,7 +900,7 @@ export default function DotaceApp() {
                               <td>
                                 <input
                                   type="checkbox"
-                                  aria-label={`Vybrat ${item.number}`}
+                                  aria-label={t(`Vybrat ${item.number}`)}
                                   checked={selected.includes(item.id)}
                                   disabled={
                                     item.excluded ||
@@ -963,7 +923,7 @@ export default function DotaceApp() {
                                 className="document-link"
                                 onClick={() => setModal({ type: "item", item })}
                               >
-                                {item.number || "Nový doklad"}
+                                {t(item.number || "Nový doklad")}
                                 {contract &&
                                   findings(item, contract).length > 0 && (
                                     <TriangleAlert
@@ -973,31 +933,28 @@ export default function DotaceApp() {
                                   )}
                               </button>
                               <strong className="supplier-name">
-                                {item.supplier}
+                                {t(item.supplier)}
                               </strong>
                               <p className="full-description">
-                                {item.description}
+                                {t(item.description)}
                               </p>
                               {item.excluded && (
-                                <span className="small-muted">
-                                  Vyřazeno z vyúčtování
-                                </span>
+                                <span className="small-muted">{t("Vyřazeno z vyúčtování")}</span>
                               )}
                             </td>
                             <td>
                               <span className="category-label">
-                                {categoryLabels[item.category]}
+                                {t(categoryLabels[item.category])}
                               </span>
                               <small className="small-muted">
-                                {date(item.date)} ·{" "}
-                                {item.payment === "bank" ? "Bezhotovostní platba" : "Hotovost"}
+                                {t(date(item.date))}{t(" ·")}{t(" ")}
+                                {t(item.payment === "bank" ? "Bezhotovostní platba" : "Hotovost")}
                               </small>
                             </td>
                             <td className="numeric">
-                              <strong>{money(item.claimed)}</strong>
+                              <strong>{t(money(item.claimed))}</strong>
                               {item.claimed !== item.amount && (
-                                <small className="small-muted">
-                                  z {money(item.amount)}
+                                <small className="small-muted">{t("z ")}{t(money(item.amount))}
                                 </small>
                               )}
                             </td>
@@ -1013,7 +970,7 @@ export default function DotaceApp() {
                                   {item.fileIds.length}
                                 </button>
                               ) : (
-                                <span className="missing-file">Chybí</span>
+                                <span className="missing-file">{t("Chybí")}</span>
                               )}
                             </td>
                             <td>
@@ -1021,18 +978,18 @@ export default function DotaceApp() {
                                 className={`status-dot org-${item.orgReview}`}
                               />
                               <span className="status-text">
-                                {orgNames[item.orgReview]}
+                                {t(orgNames[item.orgReview])}
                               </span>
                             </td>
                             <td>
                               <span className={`badge sfj-${item.sfjDecision}`}>
-                                {sfjNames[item.sfjDecision]}
+                                {t(sfjNames[item.sfjDecision])}
                               </span>
                             </td>
                             <td>
                               <button
                                 className="icon-button"
-                                aria-label={`Otevřít doklad ${item.number}`}
+                                aria-label={t(`Otevřít doklad ${item.number}`)}
                                 onClick={() => setModal({ type: "item", item })}
                               >
                                 <ChevronRight size={17} />
@@ -1046,35 +1003,22 @@ export default function DotaceApp() {
                       <Empty
                         icon={<FileText size={28} />}
                         title={
-                          contractItems.length
+                          t(contractItems.length
                             ? "Žádný doklad neodpovídá filtru"
-                            : "Začněte prvním dokladem"
+                            : "Začněte prvním dokladem")
                         }
                         text={
                           contractItems.length
                             ? "Změňte hledání nebo nastavený filtr."
                             : "Nahrajte PDF nebo fotografii účtenky a doplňte údaje."
                         }
-                        action={
-                          editable ? (
-                            <button
-                              className="button primary"
-                              onClick={() => setModal({ type: "item" })}
-                            >
-                              <Plus size={16} />
-                              Přidat doklad
-                            </button>
-                          ) : undefined
-                        }
                       />
                     )}
                   </div>
                   <div className="table-footer">
                     <span>
-                      {filteredItems.length} z {contractItems.length} dokladů
-                    </span>
-                    <strong>
-                      Celkem uplatněno {money(total(contractItems))}
+                      {filteredItems.length}{t(" z ")}{contractItems.length}{t(" dokladů")}</span>
+                    <strong>{t("Celkem uplatněno ")}{t(money(total(contractItems)))}
                     </strong>
                   </div>
                 </section>
@@ -1122,32 +1066,32 @@ export default function DotaceApp() {
             <>
               <div className="page-heading">
                 <div>
-                  <h1>Smlouvy</h1>
-                  <p>Dotace a jejich vyúčtování.</p>
+                  <h1>{t("Smlouvy")}</h1>
+                  <p>{t("Vyberte smlouvu a pokračujte v přípravě nebo kontrole výdajů.")}</p>
                 </div>
                 <div className="heading-actions">
-                  {federation && !preview && <button className="button primary" disabled={!state.organizations.length} onClick={()=>setModal({type:"contract",organizationId:state.organizations.length===1?state.organizations[0].id:""})}><Plus size={16}/><span>Nová smlouva</span></button>}
+                  {federation && !preview && <button className="button primary" disabled={!state.organizations.length} onClick={()=>setModal({type:"contract",organizationId:state.organizations.length===1?state.organizations[0].id:""})}><Plus size={16}/><span>{t("Nová smlouva")}</span></button>}
                   <span className="today-label">
-                    {new Intl.DateTimeFormat("cs-CZ", {
+                    {t(new Intl.DateTimeFormat("cs-CZ", {
                       day: "numeric",
                       month: "long",
                       year: "numeric",
-                    }).format(new Date())}
+                    }).format(new Date()))}
                   </span>
-                  {federation && !preview && (
-                    <button
-                      className="button secondary"
-                      onClick={() => {
-                        goHome("organizations");
-                        setModal({ type: "organization" });
-                      }}
-                    >
-                      <Plus size={17} />
-                      Nová organizace
-                    </button>
-                  )}
+
                 </div>
               </div>
+              <section className="start-guide no-print" aria-label={t("Začínáme")}>
+                <div>
+                  <h2>{t(federation ? "Spravujete dotace za federaci" : "Připravte vyúčtování své organizace")}</h2>
+                  <p>{t(federation ? "Založte organizaci, přidejte její smlouvu a pozvěte správce klubu. Klub nahraje výdaje a odešle je vám ke kontrole." : "Otevřete svou smlouvu, nahrajte faktury nebo účtenky, zkontrolujte doplněné údaje a odešlete vyúčtování federaci.")}</p>
+                  <p className="guide-sample">{t("Ukázkové organizace a doklady slouží k vyzkoušení celého postupu.")}</p>
+                </div>
+                <div className="guide-actions">
+                  {state.contracts.some(c => c.id === 'contract-haj') && <button className="button primary" onClick={() => openContract('contract-haj')}>{t("Vyzkoušet ukázkové vyúčtování")}<ArrowRight size={16} /></button>}
+                  {federation && <button className="button secondary" onClick={() => { goHome('organizations'); setModal({type:'organization'}); }}>{t("Založit vlastní organizaci")}</button>}
+                </div>
+              </section>
               <div className="overview-metrics">
                 <Metric
                   label="Přiděleno celkem"
@@ -1184,51 +1128,51 @@ export default function DotaceApp() {
                 />
               </div>
               <section className="panel contracts-panel">
-                <div className="contract-status-filters" aria-label="Stav vyúčtování">
-                  {[["","Všechny"],["open","Rozpracované"],["submitted","Ke kontrole"],["approved","Schválené"]].map(([value,label])=><button key={value} type="button" aria-pressed={statusFilter===value} onClick={()=>setStatusFilter(value)}><span>{label}</span><span translate="no">{state.contracts.filter(c=>!value || (value==='open'?['draft','changes'].includes(c.status):c.status===value)).length}</span></button>)}
+                <div className="contract-status-filters" aria-label={t("Stav vyúčtování")}>
+                  {[["","Všechny"],["open","Rozpracované"],["submitted","Ke kontrole"],["approved","Schválené"]].map(([value,label])=><button key={value} type="button" aria-pressed={statusFilter===value} onClick={()=>setStatusFilter(value)}><span>{t(label)}</span><span translate="no">{state.contracts.filter(c=>!value || (value==='open'?['draft','changes'].includes(c.status):c.status===value)).length}</span></button>)}
                 </div>
                 <div className="table-toolbar">
                   <div className="search-field">
                     <Search size={16} />
                     <input
-                      aria-label="Hledat smlouvu"
-                      placeholder="Hledat organizaci nebo smlouvu…"
+                      aria-label={t("Hledat smlouvu")}
+                      placeholder={t("Hledat organizaci nebo smlouvu…")}
                       value={query}
                       onChange={(e) => setQuery(e.target.value)}
                     />
                   </div>
                   <select
-                    aria-label="Rok smlouvy"
+                    aria-label={t("Rok smlouvy")}
                     value={year}
                     onChange={(e) => setYear(e.target.value)}
                   >
-                    <option value="">Všechny roky</option>
+                    <option value="">{t("Všechny roky")}</option>
                     {[...new Set(state.contracts.map((c) => c.year))]
                       .sort()
                       .reverse()
                       .map((y) => (
-                        <option key={y}>{y}</option>
+                        <option key={y} value={y}>{y}</option>
                       ))}
                   </select>
                   <select
-                    aria-label="Program dotace"
+                    aria-label={t("Program dotace")}
                     value={program}
                     onChange={(e) => setProgram(e.target.value)}
                   >
-                    <option value="">Všechny programy</option>
+                    <option value="">{t("Všechny programy")}</option>
                     {programs.map((p) => (
-                      <option key={p}>{p}</option>
+                      <option key={p} value={p}>{t(p)}</option>
                     ))}
                   </select>
                   <select
-                    aria-label="Organizace"
+                    aria-label={t("Organizace")}
                     value={orgFilter}
                     onChange={(e) => setOrgFilter(e.target.value)}
                   >
-                    <option value="">Všechny organizace</option>
+                    <option value="">{t("Všechny organizace")}</option>
                     {state.organizations.map((o) => (
                       <option key={o.id} value={o.id}>
-                        {o.name}
+                        {t(o.name)}
                       </option>
                     ))}
                   </select>
@@ -1237,11 +1181,11 @@ export default function DotaceApp() {
                   <table className="contract-table">
                     <thead>
                       <tr>
-                        <th>Organizace a smlouva</th>
-                        <th>Program</th>
-                        <th className="numeric">Přidělená dotace</th>
-                        <th>Vyúčtování</th>
-                        <th>Termín</th>
+                        <th>{t("Organizace a smlouva")}</th>
+                        <th>{t("Program")}</th>
+                        <th className="numeric">{t("Přidělená dotace")}</th>
+                        <th>{t("Vyúčtování")}</th>
+                        <th>{t("Termín")}</th>
                         <th />
                       </tr>
                     </thead>
@@ -1258,25 +1202,25 @@ export default function DotaceApp() {
                                 onClick={() => openContract(c.id)}
                               >
                                 <span className="organization-avatar">
-                                  {org?.name
+                                  {t(org?.name
                                     .split(" ")
                                     .slice(0, 2)
                                     .map((x) => x[0])
-                                    .join("")}
+                                    .join(""))}
                                 </span>
                                 <span>
-                                  <strong>{org?.name}</strong>
+                                  <strong>{t(org?.name)}</strong>
                                   <small>
-                                    {c.number} <span>· {c.year}</span>
+                                    {t(c.number)} <span>{t("·")}{c.year}</span>
                                   </small>
                                 </span>
                               </button>
                             </td>
                             <td>
-                              <span className="program-tag">{c.program}</span>
+                              <span className="program-tag">{t(c.program)}</span>
                             </td>
                             <td className="numeric">
-                              <strong>{money(c.amount)}</strong>
+                              <strong>{t(money(c.amount))}</strong>
                             </td>
                             <td>
                               <span className={`badge ${c.status}`}>
@@ -1285,17 +1229,17 @@ export default function DotaceApp() {
                                 ) : c.status === "submitted" ? (
                                   <Clock3 size={12} />
                                 ) : null}
-                                {statusNames[c.status]}
+                                {t(statusNames[c.status])}
                               </span>
                             </td>
-                            <td className="nowrap"><span className="mobile-deadline-label">Termín: </span>{date(c.deadline)}</td>
+                            <td className="nowrap"><span className="mobile-deadline-label">{t("Termín:")}</span>{t(date(c.deadline))}</td>
                             <td>
                               <button
-                                className="icon-button"
-                                aria-label={`Otevřít smlouvu ${c.number}`}
+                                className="text-link contract-action"
+                                aria-label={t(`Otevřít smlouvu ${c.number}`)}
                                 onClick={() => openContract(c.id)}
                               >
-                                <ArrowUpRight size={18} />
+                                {t(c.status === 'approved' ? 'Zobrazit výsledek' : c.status === 'submitted' ? 'Zkontrolovat výdaje' : 'Pokračovat')}
                               </button>
                             </td>
                           </tr>
@@ -1306,7 +1250,7 @@ export default function DotaceApp() {
                   {!filteredContracts.length && (
                     <Empty
                       icon={<FileText size={28} />}
-                      title="Žádné smlouvy"
+                      title={t("Žádné smlouvy")}
                       text={
                         state.contracts.length
                           ? "Upravte hledání nebo filtry."
@@ -1316,8 +1260,8 @@ export default function DotaceApp() {
                   )}
                 </div>
                 <div className="table-footer">
-                  <span key={`${filteredContracts.length}:${state.contracts.length}`}>{`${filteredContracts.length} z ${state.contracts.length} smluv`}</span>
-                  {(query||year||program||orgFilter||statusFilter) && <button className="text-link" onClick={()=>{setQuery('');setYear('');setProgram('');setOrgFilter('');setStatusFilter('');}}>Zrušit filtry</button>}
+                  <span key={`${filteredContracts.length}:${state.contracts.length}`}>{t(`${filteredContracts.length} z ${state.contracts.length} smluv`)}</span>
+                  {(query||year||program||orgFilter||statusFilter) && <button className="text-link" onClick={()=>{setQuery('');setYear('');setProgram('');setOrgFilter('');setStatusFilter('');}}>{t("Zrušit filtry")}</button>}
                 </div>
               </section>
             </>
@@ -1328,15 +1272,12 @@ export default function DotaceApp() {
                   className="back-link"
                   onClick={() => setOrganizationId("")}
                 >
-                  <ArrowLeft size={15} />
-                  Všechny organizace
-                </button>
+                  <ArrowLeft size={15} />{t("Všechny organizace")}</button>
                 <div className="page-heading">
                   <div>
-                    <div className="eyebrow">PROFIL ORGANIZACE</div>
-                    <h1>{organization.name}</h1>
-                    <p>
-                      IČO {organization.ico} · {organization.address}
+                    <div className="eyebrow">{t("PROFIL ORGANIZACE")}</div>
+                    <h1>{t(organization.name)}</h1>
+                    <p>{t("IČO ")}{t(organization.ico)}{t(" · ")}{organization.address}
                     </p>
                   </div>
                   <div className="heading-actions">
@@ -1346,9 +1287,7 @@ export default function DotaceApp() {
                         onClick={() =>
                           setModal({ type: "organization", organization })
                         }
-                      >
-                        Upravit profil
-                      </button>
+                      >{t("Upravit profil")}</button>
                     )}
                     {(federation || state.membership.role === "org_admin") && (
                       <button
@@ -1360,9 +1299,7 @@ export default function DotaceApp() {
                           })
                         }
                       >
-                        <Users size={16} />
-                        Pozvat člena
-                      </button>
+                        <Users size={16} />{t("Pozvat člena")}</button>
                     )}
                     {federation && !preview && (
                       <button
@@ -1374,58 +1311,54 @@ export default function DotaceApp() {
                           })
                         }
                       >
-                        <Plus size={17} />
-                        Založit smlouvu
-                      </button>
+                        <Plus size={17} />{t("Založit smlouvu")}</button>
                     )}
                   </div>
                 </div>
                 <div className="organization-detail-grid">
                   <section className="panel padded">
-                    <h2>Kontaktní údaje</h2>
+                    <h2>{t("Kontaktní údaje")}</h2>
                     <dl className="detail-list">
-                      <dt>E-mail</dt>
-                      <dd>{organization.email || "—"}</dd>
-                      <dt>Telefon</dt>
-                      <dd>{organization.phone || "—"}</dd>
-                      <dt>Bankovní účet</dt>
-                      <dd>{organization.bank || "—"}</dd>
-                      <dt>Statutární zástupci</dt>
-                      <dd>{organization.representatives.join(", ") || "—"}</dd>
+                      <dt>{t("E-mail")}</dt>
+                      <dd>{t(organization.email || "—")}</dd>
+                      <dt>{t("Telefon")}</dt>
+                      <dd>{t(organization.phone || "—")}</dd>
+                      <dt>{t("Bankovní účet")}</dt>
+                      <dd>{t(organization.bank || "—")}</dd>
+                      <dt>{t("Statutární zástupci")}</dt>
+                      <dd>{t(organization.representatives.join(", ") || "—")}</dd>
                     </dl>
                   </section>
                   <section className="panel padded">
-                    <h2>Lidé a oprávnění</h2>
+                    <h2>{t("Lidé a oprávnění")}</h2>
                     {state.members
                       .filter((m) => m.organizationId === organization.id)
                       .map((m) => (
                         <div className="member-row" key={m.id}>
                           <span className="avatar light">
-                            {m.name.slice(0, 2).toUpperCase()}
+                            {t(m.name.slice(0, 2).toUpperCase())}
                           </span>
                           <span>
-                            <strong>{m.name}</strong>
-                            <small>{m.email}</small>
+                            <strong>{t(m.name)}</strong>
+                            <small>{t(m.email)}</small>
                           </span>
                           <span className="badge neutral">
-                            {m.role === "org_admin" ? "Správce" : "Člen"}
+                            {t(m.role === "org_admin" ? "Správce" : "Člen")}
                           </span>
                         </div>
                       ))}
                     {!state.members.some(
                       (m) => m.organizationId === organization.id,
                     ) && (
-                      <p className="muted">
-                        Zatím žádný člen. Pozvěte správce organizace.
-                      </p>
+                      <p className="muted">{t("Zatím žádný člen. Pozvěte správce organizace.")}</p>
                     )}
                   </section>
                 </div>
                 <section className="panel">
                   <div className="panel-header">
                     <div>
-                      <h2>Smlouvy organizace</h2>
-                      <p>Nová smlouva se zakládá přímo v tomto profilu.</p>
+                      <h2>{t("Smlouvy organizace")}</h2>
+                      <p>{t("Nová smlouva se zakládá přímo v tomto profilu.")}</p>
                     </div>
                   </div>
                   {state.contracts
@@ -1438,14 +1371,14 @@ export default function DotaceApp() {
                       >
                         <FileText size={21} />
                         <span>
-                          <strong>{c.number}</strong>
+                          <strong>{t(c.number)}</strong>
                           <small>
-                            {c.program} · {c.year}
+                            {t(c.program)}{t(" ·")}{c.year}
                           </small>
                         </span>
-                        <strong>{money(c.amount)}</strong>
+                        <strong>{t(money(c.amount))}</strong>
                         <span className={`badge ${c.status}`}>
-                          {statusNames[c.status]}
+                          {t(statusNames[c.status])}
                         </span>
                         <ChevronRight size={18} />
                       </button>
@@ -1454,7 +1387,7 @@ export default function DotaceApp() {
                     (c) => c.organizationId === organization.id,
                   ) && (
                     <Empty
-                      title="Zatím bez smlouvy"
+                      title={t("Zatím bez smlouvy")}
                       text="Přidejte podepsanou smlouvu a její podmínky."
                       icon={<FileText size={26} />}
                     />
@@ -1465,9 +1398,9 @@ export default function DotaceApp() {
               <>
                 <div className="page-heading">
                   <div>
-                    <div className="eyebrow">SPOLUPRÁCE</div>
-                    <h1>Organizace a lidé</h1>
-                    <p>Profily příjemců, jejich smlouvy a přístupy členů.</p>
+                    <div className="eyebrow">{t("SPOLUPRÁCE")}</div>
+                    <h1>{t("Organizace a lidé")}</h1>
+                    <p>{t("Každá organizace má vlastní smlouvy a členy. Otevřete profil pro přidání smlouvy nebo pozvání správce klubu.")}</p>
                   </div>
                   {federation && !preview && (
                     <div className="heading-actions">
@@ -1477,16 +1410,12 @@ export default function DotaceApp() {
                           setModal({ type: "invite", organizationId: "" })
                         }
                       >
-                        <Users size={16} />
-                        Pozvat správce SFJ
-                      </button>
+                        <Users size={16} />{t("Pozvat správce SFJ")}</button>
                       <button
                         className="button primary"
                         onClick={() => setModal({ type: "organization" })}
                       >
-                        <Plus size={17} />
-                        Přidat organizaci
-                      </button>
+                        <Plus size={17} />{t("Přidat organizaci")}</button>
                     </div>
                   )}
                 </div>
@@ -1503,20 +1432,17 @@ export default function DotaceApp() {
                         </span>
                         <ArrowUpRight size={18} />
                       </div>
-                      <h2>{o.name}</h2>
-                      <p>IČO {o.ico}</p>
-                      <p>{o.address}</p>
+                      <h2>{t(o.name)}</h2>
+                      <p>{t("IČO ")}{o.ico}</p>
+                      <p>{t(o.address)}</p>
                       <div className="organization-card-bottom">
                         <span>
                           {
                             state.contracts.filter(
                               (c) => c.organizationId === o.id,
                             ).length
-                          }{" "}
-                          smluv
-                        </span>
-                        <span>
-                          Zobrazit profil <ArrowRight size={14} />
+                          }{t(" ")}{t("smluv")}</span>
+                        <span>{t("Zobrazit profil ")}<ArrowRight size={14} />
                         </span>
                       </div>
                     </button>
@@ -1528,29 +1454,27 @@ export default function DotaceApp() {
             <>
               <div className="page-heading">
                 <div>
-                  <div className="eyebrow">AUDITNÍ STOPA</div>
-                  <h1>Historie činností</h1>
-                  <p>Kdo, kdy a co změnil. Záznamy se uchovávají na serveru.</p>
+                  <div className="eyebrow">{t("AUDITNÍ STOPA")}</div>
+                  <h1>{t("Historie činností")}</h1>
+                  <p>{t("Kdo, kdy a co změnil. Záznamy se uchovávají na serveru.")}</p>
                 </div>
               </div>
               <Audit events={state.audit} />
             </>
           )}
           <footer className="page-footer no-print">
-            <span translate="no">Javor / Dotace</span>
-            <span>
-              Zkušební prostředí · fiktivní data
-            </span>
+            <span translate="no">{t("Javor / Dotace")}</span>
+            <span>{t("Zkušební prostředí · fiktivní data")}</span>
           </footer>
         </main>
       </div>
       {toast && (
         <div className="toast no-print" role="status">
           <CircleCheck size={18} />
-          <span key={toast}>{toast}</span>
+          <span key={toast}>{t(toast)}</span>
           <button
             className="icon-button"
-            aria-label="Zavřít oznámení"
+            aria-label={t("Zavřít oznámení")}
             onClick={() => setToast("")}
           >
             <X size={14} />
@@ -1559,14 +1483,12 @@ export default function DotaceApp() {
       )}
       {busy && (
         <div className="saving no-print" role="status">
-          <Loader2 className="spin" size={15} />
-          Ukládání…
-        </div>
+          <Loader2 className="spin" size={15} />{t("Ukládání…")}</div>
       )}
       {modal && (
         <ModalShell
           title={
-            modal.type === "organization"
+            t(modal.type === "organization"
               ? modal.organization
                 ? "Upravit organizaci"
                 : "Nová organizace"
@@ -1588,7 +1510,7 @@ export default function DotaceApp() {
                             : "Pozvat správce SFJ"
                           : modal.type === "adviser"
                             ? "Pravidla a nápověda"
-                            : "Návrh na zlepšení"
+                            : "Návrh na zlepšení")
           }
           wide={modal.type === "item" || modal.type === "adviser"}
           editor={modal.type === "item"}
@@ -1599,9 +1521,9 @@ export default function DotaceApp() {
               organization={modal.organization}
               busy={busy}
               onSave={(o) =>
-                mutate("saveOrganization", { organization: o }).then(() =>
-                  setModal(null),
-                )
+                mutate<{id: string}>("saveOrganization", { organization: o }).then(({id}) => {
+                  setModal(null); goHome("organizations"); setOrganizationId(id);
+                })
               }
             />
           )}
@@ -1612,9 +1534,9 @@ export default function DotaceApp() {
               contract={modal.contract}
               busy={busy}
               onSave={(c) =>
-                mutate("saveContract", { contract: c }).then(() =>
-                  setModal(null),
-                )
+                mutate<{id: string}>("saveContract", { contract: c }).then(({id}) => {
+                  setModal(null); openContract(id);
+                })
               }
             />
           )}
@@ -1743,6 +1665,55 @@ export default function DotaceApp() {
   );
 }
 
+function NextStep({ contract, items, canReview, canSubmit, onAdd, onOpen, onSubmit, onApprove, onSummary }: {
+  contract: Contract;
+  items: Item[];
+  canReview: boolean;
+  canSubmit: boolean;
+  onAdd: () => void;
+  onOpen: (item: Item) => void;
+  onSubmit: () => void;
+  onApprove: () => void;
+  onSummary: () => void;
+}) {
+  const { t } = useLanguage();
+  const active = items.filter(item => !item.excluded);
+  const unfinished = active.find(item => submissionErrors(contract, [item]).length > 0);
+  const pending = active.find(item => item.sfjDecision === 'pending' || item.sfjDecision === 'supplement');
+  let title = 'Přidejte první výdaj';
+  let detail = 'Nahrajte fakturu nebo účtenku. Údaje se doplní automaticky a potom je zkontrolujete.';
+  let label = 'Nahrát první doklad';
+  let action = onAdd;
+  if (contract.status === 'approved') {
+    title = 'Vyúčtování je schválené';
+    detail = 'V souhrnu najdete výsledek kontroly a stáhnete závěrečnou zprávu v PDF.';
+    label = 'Otevřít souhrn a PDF'; action = onSummary;
+  } else if (contract.status === 'submitted') {
+    title = canReview ? 'Posuďte předložené výdaje' : 'Vyúčtování čeká na kontrolu federace';
+    detail = canReview ? 'Otevřete výdaj, porovnejte jej s přílohou a přijměte jej, zamítněte nebo požádejte o doplnění.' : 'Průběh a případné žádosti o doplnění najdete u jednotlivých výdajů.';
+    label = canReview ? pending ? 'Otevřít další výdaj ke kontrole' : 'Dokončit kontrolu' : 'Zobrazit souhrn';
+    action = canReview ? pending ? () => onOpen(pending) : onApprove : onSummary;
+    if (canReview && !pending) {
+      title = 'Všechny výdaje jsou posouzené';
+      detail = 'Zbývá potvrdit závěr kontroly. Poté si můžete stáhnout výslednou zprávu.';
+    }
+  } else if (unfinished) {
+    title = 'Zkontrolujte údaje výdajů';
+    detail = 'Porovnejte údaje s dokladem, vysvětlete případná upozornění a potvrďte kontrolu. Pak můžete vyúčtování odeslat.';
+    label = 'Otevřít další výdaj'; action = () => onOpen(unfinished);
+  } else if (active.length) {
+    const errors = submissionErrors(contract, items);
+    title = errors.length ? 'Před odesláním upravte vyúčtování' : 'Výdaje jsou zkontrolované';
+    detail = errors.length ? errors.join(' ') : canSubmit ? 'Pokud jste přidali všechny výdaje, odešlete je federaci ke kontrole.' : 'Správce vaší organizace nyní může vyúčtování odeslat federaci.';
+    label = errors.length ? 'Otevřít výdaj' : canSubmit ? 'Zkontrolovat a odeslat' : 'Zobrazit souhrn';
+    action = errors.length ? () => onOpen(active[0]) : canSubmit ? onSubmit : onSummary;
+  }
+  return <section className="next-step no-print" aria-label={t("Další krok")}>
+    <div><h2>{t(title)}</h2><p>{t(detail)}</p></div>
+    <button type="button" className="button primary" onClick={action}>{t(label)}<ArrowRight size={16}/></button>
+  </section>;
+}
+
 function Metric({
   label,
   value,
@@ -1756,13 +1727,14 @@ function Metric({
   onClick?: () => void;
   active?: boolean;
 }) {
+  const { t } = useLanguage();
   const contents = <>
       <div className="metric-top">
-        <span>{label}</span>
+        <span>{t(label)}</span>
         <span className="metric-icon">{icon}</span>
       </div>
-      <strong key={value}>{value}</strong>
-      {hint && <small>{hint}</small>}
+      <strong key={value}>{t(value)}</strong>
+      {hint && <small>{t(hint)}</small>}
     </>;
   return onClick ? <button type="button" className={`metric metric-action ${active?'active':''}`} aria-pressed={active} onClick={onClick}>{contents}</button> : <div className="metric">{contents}</div>;
 }
@@ -1777,11 +1749,12 @@ function Empty({
   text: string;
   action?: React.ReactNode;
 }) {
+  const { t } = useLanguage();
   return (
     <div className="empty">
       <span>{icon}</span>
-      <h3>{title}</h3>
-      <p>{text}</p>
+      <h3>{t(title)}</h3>
+      <p>{t(text)}</p>
       {action}
     </div>
   );
@@ -1798,6 +1771,7 @@ function ModalShell({
   wide?: boolean;
   editor?: boolean;
 }) {
+  const { t } = useLanguage();
   const ref = useRef<HTMLDivElement>(null);
   const closeRef = useRef(onClose); closeRef.current = onClose;
   useEffect(() => {
@@ -1847,10 +1821,10 @@ function ModalShell({
         aria-labelledby="modal-title"
       >
         <div className="modal-header">
-          <h2 id="modal-title">{title}</h2>
+          <h2 id="modal-title">{t(title)}</h2>
           <button
             className="icon-button"
-            aria-label="Zavřít dialog"
+            aria-label={t("Zavřít dialog")}
             onClick={onClose}
           >
             <X size={20} />
@@ -1870,15 +1844,17 @@ function Field({
   children: React.ReactNode;
   hint?: string;
 }) {
+  const { t } = useLanguage();
   return (
     <label className="field">
-      <span>{label}</span>
+      <span>{t(label)}</span>
       {children}
-      {hint && <small>{hint}</small>}
+      {hint && <small>{t(hint)}</small>}
     </label>
   );
 }
 function FormError({ error }: { error: string }) {
+  const { t } = useLanguage();
   return error ? (
     <div
       className="notice error"
@@ -1886,7 +1862,7 @@ function FormError({ error }: { error: string }) {
       style={{ whiteSpace: "pre-line" }}
     >
       <TriangleAlert size={17} />
-      {error}
+      {t(error)}
     </div>
   ) : null;
 }
@@ -1900,6 +1876,7 @@ function OrganizationForm({
   busy: boolean;
   onSave: (o: Partial<Organization>) => Promise<unknown>;
 }) {
+  const { t } = useLanguage();
   const [o, setO] = useState<Organization>(
     organization || {
       id: "",
@@ -1953,16 +1930,11 @@ function OrganizationForm({
         }).catch((x) => setError(x.message));
       }}
     >
-      <p className="form-intro">
-        Základní údaje příjemce dotace. Organizace může mít dva statutární
-        zástupce.
-      </p>
+      <p className="form-intro">{t("Základní údaje příjemce dotace. Organizace může mít dva statutární zástupce.")}</p>
       <FormError error={error} />
       <div className="organization-onboarding">
         <label className="button secondary upload-button">
-          <Upload size={15} />
-          Předvyplnit z podepsané smlouvy
-          <input
+          <Upload size={15} />{t("Předvyplnit z podepsané smlouvy")}<input
             type="file"
             accept="application/pdf,image/jpeg,image/png,image/webp"
             onChange={(e) => {
@@ -1995,7 +1967,7 @@ function OrganizationForm({
         {source && (
           <p className="onboarding-source">
             <CircleCheck size={13} />
-            {source}
+            {t(source)}
           </p>
         )}
       </div>
@@ -2004,7 +1976,7 @@ function OrganizationForm({
           required
           value={o.name}
           onChange={(e) => change("name", e.target.value)}
-          placeholder="Sportovní klub Javor, z. s."
+          placeholder={t("Sportovní klub Javor, z. s.")}
         />
       </Field>
       <div className="form-grid">
@@ -2013,10 +1985,10 @@ function OrganizationForm({
             <input
               required
               pattern="[0-9]{8}"
-              title="IČO má osm číslic"
+              title={t("IČO má osm číslic")}
               value={o.ico}
               onChange={(e) => change("ico", e.target.value)}
-              placeholder="12345678"
+              placeholder={t("12345678")}
             />
             <button
               type="button"
@@ -2025,7 +1997,7 @@ function OrganizationForm({
               onClick={() => void registry()}
             >
               <span aria-hidden="true">{lookingUp ? <Loader2 className="spin" size={13} /> : <Search size={13} />}</span>
-              <span>ARES</span>
+              <span>{t("ARES")}</span>
             </button>
           </div>
         </Field>
@@ -2083,14 +2055,11 @@ function OrganizationForm({
         </Field>
       </div>
       <div className="inline-banner">
-        <ShieldCheck size={16} />
-        Údaje ověřte podle podepsané smlouvy. Zdrojové dokumenty připojíte ke
-        smlouvě v profilu organizace.
-      </div>
+        <ShieldCheck size={16} />{t("Údaje ověřte podle podepsané smlouvy. Zdrojové dokumenty připojíte ke smlouvě v profilu organizace.")}</div>
       <div className="form-footer">
         <button className="button primary" type="submit" disabled={busy || ocrBusy}>
           <span aria-hidden="true">{busy ? <Loader2 size={16} className="spin" /> : <Check size={16} />}</span>
-          <span>Uložit organizaci</span>
+          <span>{t("Uložit organizaci")}</span>
         </button>
       </div>
     </form>
@@ -2108,6 +2077,7 @@ function ContractForm({
   busy: boolean;
   onSave: (c: Partial<Contract>) => Promise<unknown>;
 }) {
+  const { t } = useLanguage();
   const [c, setC] = useState<Contract>(
     contract || {
       id: "",
@@ -2142,14 +2112,14 @@ function ContractForm({
       }}
     >
       <FormError error={error} />
-      {!contract && <Field label="Organizace"><select required value={c.organizationId} onChange={e=>change('organizationId',e.target.value)}><option value="">Vyberte organizaci</option>{organizations.map(o=><option key={o.id} value={o.id}>{o.name}</option>)}</select></Field>}
+      {!contract && <Field label="Organizace"><select required value={c.organizationId} onChange={e=>change('organizationId',e.target.value)}><option value="">{t("Vyberte organizaci")}</option>{organizations.map(o=><option key={o.id} value={o.id}>{t(o.name)}</option>)}</select></Field>}
       <div className="form-grid">
         <Field label="Číslo smlouvy">
           <input
             required
             value={c.number}
             onChange={(e) => change("number", e.target.value)}
-            placeholder="SFJ/2026/001"
+            placeholder={t("SFJ/2026/001")}
           />
         </Field>
         <Field label="Program">
@@ -2158,7 +2128,7 @@ function ContractForm({
             onChange={(e) => change("program", e.target.value)}
           >
             {programs.map((p) => (
-              <option key={p}>{p}</option>
+              <option key={p} value={p}>{t(p)}</option>
             ))}
           </select>
         </Field>
@@ -2206,6 +2176,9 @@ function ContractForm({
             onChange={(e) => change("deadline", e.target.value)}
           />
         </Field>
+      </div>
+      <details className="advanced-options">
+        <summary>{t("Další podmínky a hotovost (volitelné)")}</summary>
         <Field
           label="Kontrolní hranice hotovosti (Kč)"
           hint="Prázdné = pravidlo není potvrzené; každá hotovost vyžaduje vysvětlení."
@@ -2223,7 +2196,6 @@ function ContractForm({
             }
           />
         </Field>
-      </div>
       <Field
         label="Podmínky a poznámky ke smlouvě"
         hint="Uveďte konkrétní zdroj a znění pravidla; pokyny a rozhodnutí přiložte jako dokument."
@@ -2236,17 +2208,12 @@ function ContractForm({
       </Field>
       <div className="notice warning">
         <TriangleAlert size={17} />
-        <span>
-          Podklady 2025 vyžadují bezhotovostní úhrady; pozdější domluva
-          připouští hotovost. Nastavená hranice je kontrolní upozornění, ne
-          potvrzení způsobilosti.
-        </span>
+        <span>{t("Podklady 2025 vyžadují bezhotovostní úhrady; pozdější domluva připouští hotovost. Nastavená hranice je kontrolní upozornění, ne potvrzení způsobilosti.")}</span>
       </div>
+      </details>
       <div className="form-footer">
         <button className="button primary" type="submit" disabled={busy}>
-          <Check size={16} />
-          Uložit smlouvu
-        </button>
+          <Check size={16} />{t("Uložit smlouvu")}</button>
       </div>
     </form>
   );
@@ -2277,6 +2244,7 @@ function ItemForm({
   onDecision: (d: Item["sfjDecision"], reason: string) => Promise<unknown>;
   onReply: (text: string, fileIds: string[]) => Promise<unknown>;
 }) {
+  const { t } = useLanguage();
   const organizationName = state.organizations.find(o=>o.id===contract.organizationId)?.name || '';
   const [draft, setDraft] = useState<Item>({
     ...item,
@@ -2301,7 +2269,7 @@ function ItemForm({
   const [reply, setReply] = useState("");
   const change = (key: keyof Item, value: unknown) => {
     editedFields.current.add(key);
-    setDraft((prev) => ({ ...prev, [key]: value }));
+    setDraft((prev) => ({ ...prev, [key]: value, ...(key !== "orgReview" && key !== "excluded" ? {orgReview: "unchecked" as const} : {}) }));
   };
   const allFiles = [
     ...state.files,
@@ -2392,24 +2360,21 @@ function ItemForm({
       <div className="item-document">
         <div className="document-bar">
           <span>
-            <Paperclip size={15} />
-            Originál dokladu
-          </span>
+            <Paperclip size={15} />{t("Originál dokladu")}</span>
           {file && (
             <a
               className="text-link"
               href={`/api/files?id=${encodeURIComponent(file.id)}`}
               target="_blank"
               rel="noreferrer"
-            >
-              Otevřít <ArrowUpRight size={14} />
+            >{t("Otevřít ")}<ArrowUpRight size={14} />
             </a>
           )}
         </div>
         {draft.fileIds.length > 0 && (
           <select
             className="file-select"
-            aria-label="Zobrazit přílohu"
+            aria-label={t("Zobrazit přílohu")}
             value={selectedFile}
             onChange={(e) => {
               setSelectedFile(e.target.value);
@@ -2418,7 +2383,7 @@ function ItemForm({
           >
             {draft.fileIds.map((id) => (
               <option key={id} value={id}>
-                {allFiles.find((f) => f.id === id)?.name || id}
+                {t(allFiles.find((f) => f.id === id)?.name || id)}
               </option>
             ))}
           </select>
@@ -2433,19 +2398,19 @@ function ItemForm({
             {file.type.startsWith("image/") ? (
               <img
                 src={`/api/files?id=${encodeURIComponent(file.id)}`}
-                alt={`Příloha ${file.name}`}
+                alt={t(`Příloha ${file.name}`)}
               />
             ) : (
               <DocumentPreview file={file} />
             )}
             <div className="file-meta">
               <FileText size={14} />
-              <span translate="no" key={file.id}>{file.name}</span>
-              <span translate="no">{`${Math.ceil(file.size / 1024)} kB`}</span>
+              <span translate="no" key={file.id}>{t(file.name)}</span>
+              <span translate="no">{t(`${Math.ceil(file.size / 1024)} kB`)}</span>
             </div>
           </div>
         ) : (
-          <div className="document-empty"><h3>Přiložte doklad</h3><p>Údaje ze souboru se vyplní automaticky.</p></div>
+          <div className="document-empty"><h3>{t("Přiložte doklad")}</h3><p>{t("Údaje ze souboru se vyplní automaticky.")}</p></div>
         )}
         {(editable ||
           (item.sfjDecision === "supplement" &&
@@ -2453,9 +2418,9 @@ function ItemForm({
           <label className={`upload-zone ${file ? "has-file" : ""} ${uploading ? "disabled" : ""}`}>
             <Upload size={22} />
             <strong key={String(uploading)}>
-              {uploading ? "Nahrávám…" : file ? "Přidat další přílohu" : "Vybrat doklad"}
+              {t(uploading ? "Nahrávám…" : file ? "Přidat další přílohu" : "Vybrat doklad")}
             </strong>
-            <span>{file ? "PDF nebo obrázek · do 10 MB" : "PDF, JPG, PNG, WebP · do 10 MB"}</span>
+            <span>{t(file ? "PDF nebo obrázek · do 10 MB" : "PDF, JPG, PNG, WebP · do 10 MB")}</span>
             <input
               type="file"
               accept="application/pdf,image/jpeg,image/png,image/webp"
@@ -2476,7 +2441,7 @@ function ItemForm({
             onClick={() => { setError(""); setSourceAttempt(n => n + 1); }}
           >
             <span aria-hidden="true">{readingSource ? <Loader2 size={15} className="spin" /> : <FileText size={15} />}</span>
-            <span>{readingSource ? "Načítání pro OCR…" : "Znovu načíst pro OCR"}</span>
+            <span>{t(readingSource ? "Načítání pro OCR…" : "Znovu načíst pro OCR")}</span>
           </button>
         )}
         {draft.fileIds.length > 0 && editable && (
@@ -2484,11 +2449,11 @@ function ItemForm({
             {draft.fileIds.map((id) => (
               <div key={id}>
                 <Paperclip size={13} />
-                <span>{allFiles.find((f) => f.id === id)?.name || id}</span>
+                <span>{t(allFiles.find((f) => f.id === id)?.name || id)}</span>
                 <button
                   type="button"
                   className="icon-button"
-                  aria-label="Odpojit přílohu z dokladu"
+                  aria-label={t("Odpojit přílohu z dokladu")}
                   onClick={() => {
                     change(
                       "fileIds",
@@ -2509,7 +2474,7 @@ function ItemForm({
       </div>
       <div className="item-entry"><div className="item-fields">
         <FormError error={error} />
-        {duplicate && <div className="notice warning" role="status"><div><strong>Doklad už je v evidenci</strong><p>{`${duplicate.number} · ${duplicate.supplier}. Nalezené údaje jsou vyplněné; uložený doklad můžete otevřít bez vytvoření kopie.`}</p><button type="button" className="button secondary" onClick={()=>onOpenExisting(duplicate)}><span>Otevřít uložený doklad</span></button></div></div>}
+        {duplicate && <div className="notice warning" role="status"><div><strong>{t("Doklad už je v evidenci")}</strong><p>{t(`${duplicate.number} · ${duplicate.supplier}. Nalezené údaje jsou vyplněné; uložený doklad můžete otevřít bez vytvoření kopie.`)}</p><button type="button" className="button secondary" onClick={()=>onOpenExisting(duplicate)}><span>{t("Otevřít uložený doklad")}</span></button></div></div>}
         <form id="receipt-form"
           onSubmit={(e) => {
             e.preventDefault();
@@ -2520,10 +2485,10 @@ function ItemForm({
           }}
         >
           <div className="item-section-title">
-            <span className="step-circle">1</span>
+            <span className="step-circle">{t("1")}</span>
             <div>
-              <h3>Údaje dokladu</h3>
-              <p>Porovnejte údaje s přiloženým dokladem.</p>
+              <h3>{t("Údaje dokladu")}</h3>
+              <p>{t("Porovnejte údaje s přiloženým dokladem.")}</p>
             </div>
           </div>
           <fieldset disabled={!editable || busy}>
@@ -2533,14 +2498,14 @@ function ItemForm({
                   required
                   value={draft.number}
                   onChange={(e) => change("number", e.target.value)}
-                  placeholder="FA-2026-001"
+                  placeholder={t("FA-2026-001")}
                 />
               </Field>
               <Field label="Datum úhrady">
                 <input
                   type="text"
                   required
-                  placeholder="RRRR-MM-DD nebo D. M. RRRR"
+                  placeholder={t("RRRR-MM-DD nebo D. M. RRRR")}
                   value={draft.date}
                   onChange={(e) => change("date", e.target.value)}
                   onBlur={(e) => { const parsed = parsePaymentDate(e.target.value); if (parsed) change("date", parsed); }}
@@ -2566,7 +2531,7 @@ function ItemForm({
                 rows={2}
                 value={draft.description}
                 onChange={(e) => change("description", e.target.value)}
-                placeholder="K čemu byl výdaj použit?"
+                placeholder={t("K čemu byl výdaj použit?")}
               />
             </Field>
             <Field label="Skupina nákladů">
@@ -2576,7 +2541,7 @@ function ItemForm({
               >
                 {Object.entries(categoryLabels).map(([key, label]) => (
                   <option key={key} value={key}>
-                    {label}
+                    {t(label)}
                   </option>
                 ))}
               </select>
@@ -2616,24 +2581,24 @@ function ItemForm({
                   value={draft.payment}
                   onChange={(e) => change("payment", e.target.value)}
                 >
-                  <option value="bank">Bezhotovostní platba</option>
-                  <option value="cash">Hotovost</option>
+                  <option value="bank">{t("Bezhotovostní platba")}</option>
+                  <option value="cash">{t("Hotovost")}</option>
                 </select>
               </Field>
-              <Field label="Doklad vystaven na">
+              <Field label="Komu je doklad vystaven">
                 <select
                   value={draft.recipientType}
                   onChange={(e) => { change("recipientType",e.target.value); change("recipientName",e.target.value === "organization" ? organizationName : ""); }}
                 >
-                  <option value="organization">Na naši organizaci</option>
-                  <option value="person">Na osobu</option>
-                  <option value="none">Bez uvedení odběratele</option>
-                  <option value="other">Na jinou firmu</option>
+                  <option value="organization">{t("Na naši organizaci")}</option>
+                  <option value="person">{t("Na osobu")}</option>
+                  <option value="none">{t("Bez uvedení odběratele")}</option>
+                  <option value="other">{t("Na jinou firmu")}</option>
                 </select>
               </Field>
             </div>
             {draft.recipientType !== "none" && (
-              <Field label="Název / jméno odběratele">
+              <Field label="Jméno nebo název příjemce dokladu">
                 <input
                   value={draft.recipientName}
                   onChange={(e) => change("recipientName", e.target.value)}
@@ -2642,18 +2607,18 @@ function ItemForm({
             )}
           </fieldset>
           <div className="item-section-title">
-            <span className="step-circle">2</span>
+            <span className="step-circle">{t("2")}</span>
             <div>
-              <h3>Kontrola organizace</h3>
-
+              <h3>{t("Potvrďte kontrolu údajů")}</h3>
+              <p>{t("Porovnejte částky, dodavatele a datum platby s původním dokladem.")}</p>
             </div>
           </div>
-          {!showFindings ? <p className="form-intro">Nahrajte doklad. Nalezené údaje doplníme do formuláře.</p> : issues.length > 0 ? (
+          {!showFindings ? <p className="form-intro">{t("Nahrajte doklad. Nalezené údaje doplníme do formuláře.")}</p> : issues.length > 0 ? (
             <div className="finding-list">
               {issues.map((f) => (
                 <div className={`finding ${f.severity}`} key={f.code}>
                   <TriangleAlert size={15} />
-                  <span>{f.message}</span>
+                  <span>{t(f.message)}</span>
                 </div>
               ))}
             </div>
@@ -2661,9 +2626,9 @@ function ItemForm({
             <div className="finding success">
               <CircleCheck size={16} />
               <span>
-                {draft.excluded
+                {t(draft.excluded
                   ? "Položka je vyřazená; částka se nezapočítává."
-                  : "Povinné údaje jsou vyplněné."}
+                  : "Povinné údaje jsou vyplněné.")}
               </span>
             </div>
           )}
@@ -2679,28 +2644,22 @@ function ItemForm({
                 rows={3}
                 value={draft.comment}
                 onChange={(e) => change("comment", e.target.value)}
-                placeholder="Uveďte souvislost, důvod částečného uplatnění nebo jiné vysvětlení."
+                placeholder={t("Uveďte souvislost, důvod částečného uplatnění nebo jiné vysvětlení.")}
               />
             </Field>
-            <Field label="Stav kontroly organizace">
-              <select
-                value={draft.orgReview}
-                onChange={(e) => change("orgReview", e.target.value)}
-              >
-                <option value="unchecked">Nezkontrolováno</option>
-                <option value="checked">Zkontrolováno</option>
-                <option value="commented">Zkontrolováno s komentářem</option>
-              </select>
-            </Field>
+            <label className="checkbox-label review-confirmation">
+              <input type="checkbox" checked={draft.orgReview !== 'unchecked'}
+                onChange={e => change('orgReview', e.target.checked ? (needsComment ? 'commented' : 'checked') : 'unchecked')} />
+              <span>{t("Porovnal/a jsem údaje s dokladem a vysvětlil/a případná upozornění.")}</span>
+            </label>
             <label className="checkbox-label">
               <input
                 type="checkbox"
                 checked={draft.excluded}
                 onChange={(e) => change("excluded", e.target.checked)}
               />
-              <span>
-                Vyřadit z vyúčtování{" "}
-                <small>Doklad zůstane v evidenci, částka se nezapočítá.</small>
+              <span>{t("Vyřadit z vyúčtování")}{t(" ")}
+                <small>{t("Doklad zůstane v evidenci, částka se nezapočítá.")}</small>
               </span>
             </label>
           </fieldset>
@@ -2708,20 +2667,20 @@ function ItemForm({
         {!!item.id && (
           <>
             <div className="item-section-title">
-              <span className="step-circle">3</span>
+              <span className="step-circle">{t("3")}</span>
               <div>
-                <h3>Posouzení SFJ</h3>
+                <h3>{t("Posouzení SFJ")}</h3>
                 <p>
                   <span className={`badge sfj-${item.sfjDecision}`}>
-                    {sfjNames[item.sfjDecision]}
+                    {t(sfjNames[item.sfjDecision])}
                   </span>
                 </p>
               </div>
             </div>
             {item.sfjReason && (
               <div className="review-reason">
-                <strong>Vyjádření SFJ</strong>
-                <p>{item.sfjReason}</p>
+                <strong>{t("Vyjádření SFJ")}</strong>
+                <p>{t(item.sfjReason)}</p>
               </div>
             )}
             {reviewing && !item.excluded && (
@@ -2741,9 +2700,9 @@ function ItemForm({
                       setDecision(e.target.value as Item["sfjDecision"])
                     }
                   >
-                    <option value="accepted">Akceptováno</option>
-                    <option value="rejected">Neuznáno</option>
-                    <option value="supplement">Vyžádáno doplnění</option>
+                    <option value="accepted">{t("Akceptováno")}</option>
+                    <option value="rejected">{t("Neuznáno")}</option>
+                    <option value="supplement">{t("Vyžádáno doplnění")}</option>
                   </select>
                 </Field>
                 <Field
@@ -2761,18 +2720,14 @@ function ItemForm({
                   />
                 </Field>
                 <button className="button primary" disabled={busy}>
-                  <ShieldCheck size={16} />
-                  Uložit rozhodnutí
-                </button>
+                  <ShieldCheck size={16} />{t("Uložit rozhodnutí")}</button>
               </form>
             )}
             {item.sfjDecision === "supplement" &&
               !reviewing &&
               state.membership.role === "federation" && (
                 <div className="inline-banner">
-                  <Users size={16} />
-                  Odpověď na dožádání vkládá přihlášený člen organizace.
-                </div>
+                  <Users size={16} />{t("Odpověď na dožádání vkládá přihlášený člen organizace.")}</div>
               )}
             {item.sfjDecision === "supplement" &&
               !reviewing &&
@@ -2793,30 +2748,28 @@ function ItemForm({
                       rows={4}
                       value={reply}
                       onChange={(e) => setReply(e.target.value)}
-                      placeholder="Odpovězte na požadované doplnění. Přílohu můžete přidat vlevo."
+                      placeholder={t("Odpovězte na požadované doplnění. Přílohu můžete přidat vlevo.")}
                     />
                   </Field>
                   <button
                     className="button primary"
                     disabled={busy || uploading || readingSource || extractionBusy || !!duplicate}
                   >
-                    <Send size={16} />
-                    Odeslat doplnění
-                  </button>
+                    <Send size={16} />{t("Odeslat doplnění")}</button>
                 </form>
               )}
             {state.audit.some((a) => a.itemId === item.id) && (
               <details className="item-history">
-                <summary>Historie dokladu</summary>
+                <summary>{t("Historie dokladu")}</summary>
                 {state.audit
                   .filter((a) => a.itemId === item.id)
                   .map((a) => (
                     <div key={a.id}>
                       <small>
-                        {date(a.at)} · {a.actor}
+                        {t(date(a.at))}{t(" ·")}{t(a.actor)}
                       </small>
-                      <strong>{actionLabel(a.action)}</strong>
-                      <p>{a.detail}</p>
+                      <strong>{t(actionLabel(a.action))}</strong>
+                      <p>{t(a.detail)}</p>
                     </div>
                   ))}
               </details>
@@ -2824,7 +2777,7 @@ function ItemForm({
           </>
         )}
       </div>
-      {editable && <div className="item-savebar"><div><strong>{duplicate ? 'Doklad už je v evidenci' : extractionBusy || readingSource ? 'Načítání dokladu…' : issues.some(i=>i.severity==='error') ? 'Doplňte povinné údaje' : 'Zkontrolujte údaje a uložte'}</strong><small>Změny potvrdíte uložením.</small></div><button className="button primary" type="submit" form="receipt-form" disabled={busy || uploading || readingSource || extractionBusy || !!duplicate}><span aria-hidden="true">{busy ? <Loader2 size={16} className="spin"/> : <Check size={16}/>}</span><span>{busy?'Ukládám…':'Uložit doklad'}</span></button></div>}
+      {editable && <div className="item-savebar"><div><strong>{t(duplicate ? 'Doklad už je v evidenci' : extractionBusy || readingSource ? 'Načítání dokladu…' : issues.some(i=>i.severity==='error') ? 'Doplňte povinné údaje' : 'Zkontrolujte údaje a uložte')}</strong><small>{t("Změny potvrdíte uložením.")}</small></div><button className="button primary" type="submit" form="receipt-form" disabled={busy || uploading || readingSource || extractionBusy || !!duplicate}><span aria-hidden="true">{busy ? <Loader2 size={16} className="spin"/> : <Check size={16}/>}</span><span>{t(busy?'Ukládám…':'Uložit doklad')}</span></button></div>}
       </div>
     </div>
   );
@@ -2847,6 +2800,7 @@ function Conditions({
   setToast: (s: string) => void;
   setError: (s: string) => void;
 }) {
+  const { t } = useLanguage();
   const [kind, setKind] = useState<StoredFile["kind"]>("contract");
   const [uploading, setUploading] = useState(false);
   const files = state.files.filter(
@@ -2865,51 +2819,44 @@ function Conditions({
         <div className="section-heading">
           <ShieldCheck size={21} />
           <div>
-            <h2>Podmínky smlouvy</h2>
-            <p>
-              Platí pro {contract.number} · {organization.name}
+            <h2>{t("Podmínky smlouvy")}</h2>
+            <p>{t("Platí pro ")}{t(contract.number)}{t(" ·")}{t(organization.name)}
             </p>
           </div>
         </div>
         <dl className="detail-list">
-          <dt>Program</dt>
-          <dd>{contract.program}</dd>
-          <dt>Období úhrad</dt>
+          <dt>{t("Program")}</dt>
+          <dd>{t(contract.program)}</dd>
+          <dt>{t("Období úhrad")}</dt>
           <dd>
-            {date(contract.validFrom)} – {date(contract.validTo)}
+            {t(date(contract.validFrom))}{t(" –")}{t(date(contract.validTo))}
           </dd>
-          <dt>Termín vyúčtování</dt>
-          <dd>{date(contract.deadline)}</dd>
-          <dt>Dotace</dt>
-          <dd>{money(contract.amount)}</dd>
-          <dt>Kontrolní hranice hotovosti</dt>
+          <dt>{t("Termín vyúčtování")}</dt>
+          <dd>{t(date(contract.deadline))}</dd>
+          <dt>{t("Dotace")}</dt>
+          <dd>{t(money(contract.amount))}</dd>
+          <dt>{t("Kontrolní hranice hotovosti")}</dt>
           <dd>
-            {contract.cashLimit === null
+            {t(contract.cashLimit === null
               ? "Nepotvrzená"
-              : money(contract.cashLimit)}
+              : money(contract.cashLimit))}
           </dd>
         </dl>
         <div className="conditions-text">
-          {contract.conditions ||
-            "Konkrétní podmínky dosud nebyly doplněné. Vycházejte z podepsané smlouvy a přiložených pokynů."}
+          {t(contract.conditions ||
+            "Konkrétní podmínky dosud nebyly doplněné. Vycházejte z podepsané smlouvy a přiložených pokynů.")}
         </div>
         <div className="notice warning">
           <TriangleAlert size={17} />
           <div>
-            <strong>Hotovost vyžaduje ověření</strong>
-            <p>
-              Podklady 2025 vyžadují bezhotovostní úhradu. Pozdější domluva
-              připouští drobné hotovostní výdaje; konečné pravidlo musí potvrdit
-              SFJ.
-            </p>
+            <strong>{t("Hotovost vyžaduje ověření")}</strong>
+            <p>{t("Podklady 2025 vyžadují bezhotovostní úhradu. Pozdější domluva připouští drobné hotovostní výdaje; konečné pravidlo musí potvrdit SFJ.")}</p>
           </div>
         </div>
       </section>
       <section className="panel padded">
-        <h2>Dokumenty a zdroje pravidel</h2>
-        <p className="muted">
-          Vždy pracujte s konkrétní podepsanou smlouvou a platnými pokyny.
-        </p>
+        <h2>{t("Dokumenty a zdroje pravidel")}</h2>
+        <p className="muted">{t("Vždy pracujte s konkrétní podepsanou smlouvou a platnými pokyny.")}</p>
         <div className="source-files">
           {files.map((f) => (
             <a
@@ -2922,9 +2869,9 @@ function Conditions({
                 <FileText size={19} />
               </span>
               <span>
-                <strong>{names[f.kind]}</strong>
+                <strong>{t(names[f.kind])}</strong>
                 <small>
-                  {f.name} · {date(f.createdAt)}
+                  {t(f.name)}{t(" ·")}{t(date(f.createdAt))}
                 </small>
               </span>
               <ArrowUpRight size={17} />
@@ -2933,27 +2880,25 @@ function Conditions({
         </div>
         {!files.length && (
           <div className="inline-banner">
-            <FileText size={17} />
-            Ke smlouvě zatím nejsou přiložené zdrojové dokumenty.
-          </div>
+            <FileText size={17} />{t("Ke smlouvě zatím nejsou přiložené zdrojové dokumenty.")}</div>
         )}
         {canUpload && (
           <div className="source-upload">
             <label className="field">
-              <span>Druh dokumentu</span>
+              <span>{t("Druh dokumentu")}</span>
               <select
                 value={kind}
                 onChange={(e) => setKind(e.target.value as StoredFile["kind"])}
               >
-                <option value="contract">Podepsaná smlouva</option>
-                <option value="instructions">Pokyny SFJ</option>
-                <option value="decision">Rozhodnutí ASP</option>
-                <option value="amendment">Dodatek</option>
+                <option value="contract">{t("Podepsaná smlouva")}</option>
+                <option value="instructions">{t("Pokyny SFJ")}</option>
+                <option value="decision">{t("Rozhodnutí ASP")}</option>
+                <option value="amendment">{t("Dodatek")}</option>
               </select>
             </label>
             <label className="button secondary upload-button">
               <Upload size={16} />
-              <span key={String(uploading)}>{uploading ? "Ukládání…" : "Přiložit PDF nebo fotografii"}</span>
+              <span key={String(uploading)}>{t(uploading ? "Ukládání…" : "Přiložit PDF nebo fotografii")}</span>
               <input
                 type="file"
                 accept="application/pdf,image/jpeg,image/png,image/webp"
@@ -2973,11 +2918,8 @@ function Conditions({
           </div>
         )}
         <div className="reference-sources">
-          <h3>Podklady dodané v zadání</h3>
-          <p>
-            Adaptované výňatky z roku 2025. Nejsou aktuálními právními pokyny
-            ani náhradou smlouvy.
-          </p>
+          <h3>{t("Podklady dodané v zadání")}</h3>
+          <p>{t("Adaptované výňatky z roku 2025. Nejsou aktuálními právními pokyny ani náhradou smlouvy.")}</p>
           {["organizace", "talent", "reprezentace"].map((s) => (
             <a
               href={`/reference/prehled-nakladu-${s}-2025.txt`}
@@ -2985,8 +2927,7 @@ function Conditions({
               target="_blank"
               rel="noreferrer"
             >
-              <FileText size={14} />
-              Přehled nákladů · {s}
+              <FileText size={14} />{t("Přehled nákladů · ")}{t(s)}
               <ArrowUpRight size={13} />
             </a>
           ))}
@@ -3009,6 +2950,7 @@ function Summary({
   state: AppState;
   exportCsv: () => void;
 }) {
+  const { t } = useLanguage();
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState("");
   const downloadPdf = async () => {
@@ -3040,21 +2982,19 @@ function Summary({
     <div className="summary-stack">
       <div className="summary-toolbar no-print">
         <div>
-          <h2>Souhrn vyúčtování</h2>
-          <p>Podklad pro předání, archivaci a stažení PDF.</p>
+          <h2>{t("Souhrn vyúčtování")}</h2>
+          <p>{t("Podklad pro předání, archivaci a stažení PDF.")}</p>
         </div>
         <div className="row-actions">
           <button className="button secondary" onClick={exportCsv}>
-            <Download size={16} />
-            CSV export
-          </button>
+            <Download size={16} />{t("CSV export")}</button>
           <button
             className="button primary"
             disabled={downloading}
             onClick={() => void downloadPdf()}
           >
             <span aria-hidden="true">{downloading ? <Loader2 size={16} className="spin" /> : <Download size={16} />}</span>
-            <span key={String(downloading)}>{downloading ? "Připravuji PDF…" : "Stáhnout PDF"}</span>
+            <span key={String(downloading)}>{t(downloading ? "Připravuji PDF…" : "Stáhnout PDF")}</span>
           </button>
         </div>
       </div>
@@ -3067,50 +3007,48 @@ function Summary({
         <div className="report-header">
           <div className="report-brand">
             <Leaf size={24} />
-            <span>SFJ / Dotace</span>
+            <span>{t("SFJ / Dotace")}</span>
           </div>
           <span className={`badge ${contract.status}`}>
-            {statusNames[contract.status]}
+            {t(statusNames[contract.status])}
           </span>
         </div>
         <div className="report-title">
-          <div className="eyebrow">VYÚČTOVÁNÍ DOTACE</div>
-          <h2>{organization.name}</h2>
-          <p>
-            Smlouva {contract.number} · {contract.program} · {contract.year}
+          <div className="eyebrow">{t("VYÚČTOVÁNÍ DOTACE")}</div>
+          <h2>{t(organization.name)}</h2>
+          <p>{t("Smlouva ")}{t(contract.number)}{t(" ·")}{t(contract.program)}{t(" ·")}{contract.year}
           </p>
-          <p className="small-muted">
-            IČO {organization.ico} · {organization.address}
+          <p className="small-muted">{t("IČO ")}{t(organization.ico)}{t(" · ")}{organization.address}
           </p>
         </div>
         <div className="report-totals">
           <div>
-            <span>Přidělená dotace</span>
-            <strong>{money(contract.amount)}</strong>
+            <span>{t("Přidělená dotace")}</span>
+            <strong>{t(money(contract.amount))}</strong>
           </div>
           <div>
-            <span>Uplatněné náklady</span>
-            <strong>{money(total(items))}</strong>
+            <span>{t("Uplatněné náklady")}</span>
+            <strong>{t(money(total(items)))}</strong>
           </div>
           <div>
-            <span>Krácení dotace</span>
-            <strong>{money(contract.reduction)}</strong>
+            <span>{t("Krácení dotace")}</span>
+            <strong>{t(money(contract.reduction))}</strong>
           </div>
           <div>
-            <span>Dotace po krácení</span>
+            <span>{t("Dotace po krácení")}</span>
             <strong>
-              {money(Math.max(0, contract.amount - contract.reduction))}
+              {t(money(Math.max(0, contract.amount - contract.reduction)))}
             </strong>
           </div>
         </div>
-        <h3>Souhrn podle skupin nákladů</h3>
+        <h3>{t("Souhrn podle skupin nákladů")}</h3>
         <table className="report-table">
           <thead>
             <tr>
-              <th>Skupina nákladů</th>
-              <th className="numeric">Dokladů</th>
-              <th className="numeric">Uplatněno</th>
-              <th className="numeric">Akceptováno</th>
+              <th>{t("Skupina nákladů")}</th>
+              <th className="numeric">{t("Dokladů")}</th>
+              <th className="numeric">{t("Uplatněno")}</th>
+              <th className="numeric">{t("Akceptováno")}</th>
             </tr>
           </thead>
           <tbody>
@@ -3120,41 +3058,41 @@ function Summary({
               );
               return (
                 <tr key={category}>
-                  <td>{categoryLabels[category]}</td>
+                  <td>{t(categoryLabels[category])}</td>
                   <td className="numeric">{list.length}</td>
-                  <td className="numeric">{money(total(list))}</td>
+                  <td className="numeric">{t(money(total(list)))}</td>
                   <td className="numeric">
-                    {money(
+                    {t(money(
                       total(list.filter((i) => i.sfjDecision === "accepted")),
-                    )}
+                    ))}
                   </td>
                 </tr>
               );
             })}
             <tr className="total-row">
-              <td>Celkem</td>
+              <td>{t("Celkem")}</td>
               <td className="numeric">
                 {items.filter((i) => !i.excluded).length}
               </td>
-              <td className="numeric">{money(total(items))}</td>
+              <td className="numeric">{t(money(total(items)))}</td>
               <td className="numeric">
-                {money(
+                {t(money(
                   total(items.filter((i) => i.sfjDecision === "accepted")),
-                )}
+                ))}
               </td>
             </tr>
           </tbody>
         </table>
-        <h3>Položky vyúčtování</h3>
+        <h3>{t("Položky vyúčtování")}</h3>
         <div className="table-scroll">
           <table className="report-table small">
             <thead>
               <tr>
-                <th>Doklad / popis</th>
-                <th>Skupina</th>
-                <th>Úhrada</th>
-                <th className="numeric">Uplatněno</th>
-                <th>SFJ</th>
+                <th>{t("Doklad / popis")}</th>
+                <th>{t("Skupina")}</th>
+                <th>{t("Úhrada")}</th>
+                <th className="numeric">{t("Uplatněno")}</th>
+                <th>{t("SFJ")}</th>
               </tr>
             </thead>
             <tbody>
@@ -3162,59 +3100,56 @@ function Summary({
                 <tr key={i.id} className={i.excluded ? "excluded" : ""}>
                   <td>
                     <strong>
-                      {i.number} · {i.supplier}
+                      {t(i.number)}{t(" ·")}{t(i.supplier)}
                     </strong>
-                    <p>{i.description}</p>
-                    {i.comment && <small>Komentář: {i.comment}</small>}
-                    {i.sfjReason && <small>SFJ: {i.sfjReason}</small>}
-                    {i.excluded && <small>Vyřazeno z vyúčtování</small>}
+                    <p>{t(i.description)}</p>
+                    {i.comment && <small>{t("Komentář:")}{t(i.comment)}</small>}
+                    {i.sfjReason && <small>{t("SFJ:")}{t(i.sfjReason)}</small>}
+                    {i.excluded && <small>{t("Vyřazeno z vyúčtování")}</small>}
                   </td>
-                  <td>{categoryLabels[i.category]}</td>
+                  <td>{t(categoryLabels[i.category])}</td>
                   <td>
-                    {date(i.date)}
-                    <small>{i.payment === "bank" ? "Bezhotovostní platba" : "Hotovost"}</small>
+                    {t(date(i.date))}
+                    <small>{t(i.payment === "bank" ? "Bezhotovostní platba" : "Hotovost")}</small>
                   </td>
-                  <td className="numeric">{money(i.claimed)}</td>
-                  <td>{i.excluded ? "Vyřazeno" : sfjNames[i.sfjDecision]}</td>
+                  <td className="numeric">{t(money(i.claimed))}</td>
+                  <td>{t(i.excluded ? "Vyřazeno" : sfjNames[i.sfjDecision])}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
         <div className="report-declaration">
-          <h3>Prohlášení příjemce</h3>
-          <p>{declaration}</p>
+          <h3>{t("Prohlášení příjemce")}</h3>
+          <p>{t(declaration)}</p>
           <small>
-            {contract.declaredAt
+            {t(contract.declaredAt
               ? `Potvrzeno: ${contract.declaredBy} · ${new Date(contract.declaredAt).toLocaleString("cs-CZ")}`
-              : "Vyúčtování dosud nebylo odeslané a prohlášení nebylo potvrzené."}
+              : "Vyúčtování dosud nebylo odeslané a prohlášení nebylo potvrzené.")}
           </small>
         </div>
         <div className="report-conclusion">
-          <h3>Závěr kontroly SFJ</h3>
-          <p>{contract.conclusion || "Kontrola dosud nebyla uzavřená."}</p>
-          <div>
-            Neuznané položky: <strong>{money(rejected)}</strong>{" "}
-            <span className="dot-separator">·</span> Krácení dotace:{" "}
-            <strong>{money(contract.reduction)}</strong>
+          <h3>{t("Závěr kontroly SFJ")}</h3>
+          <p>{t(contract.conclusion || "Kontrola dosud nebyla uzavřená.")}</p>
+          <div>{t("Neuznané položky: ")}<strong>{t(money(rejected))}</strong>{t(" ")}
+            <span className="dot-separator">{t("·")}</span>{t(" Krácení dotace:")}{t(" ")}
+            <strong>{t(money(contract.reduction))}</strong>
           </div>
         </div>
         <div className="report-foot">
-          <span>Fiktivní pilotní data · SFJ provádí formální kontrolu.</span>
-          <span>
-            Vytvořeno {date(today())} ·{" "}
-            {state.files.filter((f) => f.contractId === contract.id).length}{" "}
-            příloh
-          </span>
+          <span>{t("Fiktivní pilotní data · SFJ provádí formální kontrolu.")}</span>
+          <span>{t("Vytvořeno ")}{t(date(today()))}{t(" ·")}{t(" ")}
+            {state.files.filter((f) => f.contractId === contract.id).length}{t(" ")}{t("příloh")}</span>
         </div>
       </section>
     </div>
   );
 }
 function Audit({ events }: { events: AuditEvent[] }) {
+  const { t } = useLanguage();
   return (
     <section className="panel padded audit-panel">
-      <h2>Průběh a uložené změny</h2>
+      <h2>{t("Průběh a uložené změny")}</h2>
       {events.length ? (
         <div className="timeline">
           {events.map((a) => (
@@ -3222,11 +3157,11 @@ function Audit({ events }: { events: AuditEvent[] }) {
               <span className="timeline-dot" />
               <div>
                 <div className="timeline-top">
-                  <strong>{actionLabel(a.action)}</strong>
-                  <time>{new Date(a.at).toLocaleString("cs-CZ")}</time>
+                  <strong>{t(actionLabel(a.action))}</strong>
+                  <time>{t(new Date(a.at).toLocaleString("cs-CZ"))}</time>
                 </div>
-                <p>{a.detail}</p>
-                <small>{a.actor}</small>
+                <p>{t(a.detail)}</p>
+                <small>{t(a.actor)}</small>
               </div>
             </article>
           ))}
@@ -3234,7 +3169,7 @@ function Audit({ events }: { events: AuditEvent[] }) {
       ) : (
         <Empty
           icon={<History size={27} />}
-          title="Zatím bez změn"
+          title={t("Zatím bez změn")}
           text="Zde se objeví uložené úpravy, kontroly a odpovědi."
         />
       )}
@@ -3252,6 +3187,7 @@ function SubmitForm({
   busy: boolean;
   onSubmit: () => Promise<unknown>;
 }) {
+  const { t } = useLanguage();
   const [confirmed, setConfirmed] = useState(false);
   const [error, setError] = useState("");
   const errors = submissionErrors(contract, items);
@@ -3263,27 +3199,23 @@ function SubmitForm({
         void onSubmit().catch((x) => setError(x.message));
       }}
     >
-      <p className="form-intro">
-        Odesláním předáte vyúčtování do kontroly SFJ. Úpravy dokladů budou
-        uzamčené, dokud SFJ vyúčtování nevrátí.
-      </p>
+      <p className="form-intro">{t("Odesláním předáte vyúčtování do kontroly SFJ. Úpravy dokladů budou uzamčené, dokud SFJ vyúčtování nevrátí.")}</p>
       <FormError error={error} />
       {errors.length ? (
         <div className="submission-errors">
-          <h3>Ještě je potřeba doplnit</h3>
+          <h3>{t("Ještě je potřeba doplnit")}</h3>
           <ul>
             {errors.map((s, i) => (
-              <li key={i}>{s}</li>
+              <li key={i}>{t(s)}</li>
             ))}
           </ul>
         </div>
       ) : (
         <div className="notice success">
           <CircleCheck size={19} />
-          <span>
-            Formální kontrola je připravená.{" "}
-            {items.filter((i) => !i.excluded).length} dokladů ·{" "}
-            {money(total(items))}
+          <span>{t("Formální kontrola je připravená.")}{t(" ")}
+            {items.filter((i) => !i.excluded).length}{t(" dokladů ·")}{t(" ")}
+            {t(money(total(items)))}
           </span>
         </div>
       )}
@@ -3293,16 +3225,14 @@ function SubmitForm({
           checked={confirmed}
           onChange={(e) => setConfirmed(e.target.checked)}
         />
-        <span>{declaration}</span>
+        <span>{t(declaration)}</span>
       </label>
       <div className="form-footer">
         <button
           className="button primary"
           disabled={busy || !confirmed || errors.length > 0}
         >
-          <Send size={16} />
-          Odeslat vyúčtování SFJ
-        </button>
+          <Send size={16} />{t("Odeslat vyúčtování SFJ")}</button>
       </div>
     </form>
   );
@@ -3318,6 +3248,7 @@ function ApprovalForm({
   busy: boolean;
   onSubmit: (s: string, n: number) => Promise<unknown>;
 }) {
+  const { t } = useLanguage();
   const rejected = total(items.filter((i) => i.sfjDecision === "rejected"));
   const pending = items.filter(
     (i) =>
@@ -3340,14 +3271,12 @@ function ApprovalForm({
         <div className="notice warning">
           <TriangleAlert size={18} />
           <span>
-            {pending.length} dokladů ještě nemá konečné rozhodnutí. Před
-            uzavřením je posuďte.
-          </span>
+            {pending.length}{t(" dokladů ještě nemá konečné rozhodnutí. Před uzavřením je posuďte.")}</span>
         </div>
       )}
       <div className="approval-summary">
-        <span>Neuznané položky</span>
-        <strong>{money(rejected)}</strong>
+        <span>{t("Neuznané položky")}</span>
+        <strong>{t(money(rejected))}</strong>
       </div>
       <Field
         label="Krácení dotace (Kč)"
@@ -3369,7 +3298,7 @@ function ApprovalForm({
           rows={5}
           value={conclusion}
           onChange={(e) => setConclusion(e.target.value)}
-          placeholder="Uveďte závěr formální kontroly a případné odůvodnění krácení."
+          placeholder={t("Uveďte závěr formální kontroly a případné odůvodnění krácení.")}
         />
       </Field>
       <div className="form-footer">
@@ -3377,9 +3306,7 @@ function ApprovalForm({
           className="button primary"
           disabled={busy || pending.length > 0}
         >
-          <ShieldCheck size={16} />
-          Schválit a uzavřít vyúčtování
-        </button>
+          <ShieldCheck size={16} />{t("Schválit a uzavřít vyúčtování")}</button>
       </div>
     </form>
   );
@@ -3395,6 +3322,7 @@ function TextForm({
   busy: boolean;
   onSubmit: (s: string) => Promise<unknown>;
 }) {
+  const { t } = useLanguage();
   const [text, setText] = useState("");
   const [error, setError] = useState("");
   return (
@@ -3418,7 +3346,7 @@ function TextForm({
       <div className="form-footer">
         <button className="button primary" disabled={busy || !text.trim()}>
           <Send size={16} />
-          {button}
+          {t(button)}
         </button>
       </div>
     </form>
@@ -3435,6 +3363,7 @@ function InviteForm({
   busy: boolean;
   onInvite: (email: string, role: string) => Promise<{ inviteUrl?: string }>;
 }) {
+  const { t } = useLanguage();
   const [email, setEmail] = useState("");
   const sfjInvite = federation && !organizationId;
   const [role, setRole] = useState(
@@ -3457,10 +3386,7 @@ function InviteForm({
           .catch((x) => setError(x.message));
       }}
     >
-      <p className="form-intro">
-        Vytvořte osobní odkaz pro přihlášení člena. Pozvánka je vázaná na
-        e-mail, má omezenou platnost a lze ji přijmout jednou.
-      </p>
+      <p className="form-intro">{t("Vytvořte osobní odkaz pro přihlášení člena. Pozvánka je vázaná na e-mail, má omezenou platnost a lze ji přijmout jednou.")}</p>
       <FormError error={error} />
       <Field label="E-mail pozvaného">
         <input
@@ -3476,33 +3402,25 @@ function InviteForm({
         ) : (
           <select value={role} onChange={(e) => setRole(e.target.value)}>
             {federation && (
-              <option value="org_admin">
-                Správce organizace · odesílá vyúčtování
-              </option>
+              <option value="org_admin">{t("Správce organizace · odesílá vyúčtování")}</option>
             )}
-            <option value="member">Člen · připravuje doklady</option>
+            <option value="member">{t("Člen · připravuje doklady")}</option>
           </select>
         )}
       </Field>
       {sfjInvite && (
         <div className="notice warning">
           <ShieldCheck size={17} />
-          <span>
-            Správce SFJ získá stejné oprávnění ke všem organizacím, smlouvám i
-            rozhodnutím jako vy.
-          </span>
+          <span>{t("Správce SFJ získá stejné oprávnění ke všem organizacím, smlouvám i rozhodnutím jako vy.")}</span>
         </div>
       )}
       <div className="inline-banner">
-        <Users size={17} />
-        Pozvánka se automaticky neposílá e-mailem. Člen také potřebuje přístup k
-        této soukromé aplikaci.
-      </div>
+        <Users size={17} />{t("Pozvánka se automaticky neposílá e-mailem. Člen také potřebuje přístup k této soukromé aplikaci.")}</div>
       {link && (
         <div className="invite-result">
-          <strong>Pozvánka je připravená</strong>
+          <strong>{t("Pozvánka je připravená")}</strong>
           <input
-            aria-label="Odkaz pozvánky"
+            aria-label={t("Odkaz pozvánky")}
             value={link}
             readOnly
             onFocus={(e) => e.target.select()}
@@ -3518,7 +3436,7 @@ function InviteForm({
             }
           >
             <Copy size={15} />
-            {copied ? "Zkopírováno" : "Kopírovat odkaz"}
+            {t(copied ? "Zkopírováno" : "Kopírovat odkaz")}
           </button>
         </div>
       )}
@@ -3527,9 +3445,7 @@ function InviteForm({
           className="button primary"
           disabled={busy || (!organizationId && !sfjInvite)}
         >
-          <Plus size={16} />
-          Vytvořit pozvánku
-        </button>
+          <Plus size={16} />{t("Vytvořit pozvánku")}</button>
       </div>
     </form>
   );
@@ -3541,6 +3457,7 @@ function Adviser({
   contract?: Contract;
   contracts: Contract[];
 }) {
+  const { t } = useLanguage();
   const [id, setId] = useState(contract?.id || contracts[0]?.id || "");
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState<{
@@ -3578,10 +3495,8 @@ function Adviser({
           <BookOpen size={25} />
         </span>
         <div>
-          <h3>Nápověda ke smlouvě</h3>
-          <p>
-            Vyberte smlouvu a položte otázku k jejím podmínkám. Odpověď obsahuje dostupné zdroje.
-          </p>
+          <h3>{t("Nápověda ke smlouvě")}</h3>
+          <p>{t("Vyberte smlouvu a položte otázku k jejím podmínkám. Odpověď obsahuje dostupné zdroje.")}</p>
         </div>
       </div>
       <Field label="Smlouva">
@@ -3594,7 +3509,7 @@ function Adviser({
         >
           {contracts.map((c) => (
             <option key={c.id} value={c.id}>
-              {c.number} · {c.program}
+              {t(c.number)}{t(" ·")}{t(c.program)}
             </option>
           ))}
         </select>
@@ -3606,7 +3521,7 @@ function Adviser({
           "Mohu použít hotovost?",
         ].map((q) => (
           <button key={q} onClick={() => void ask(q)} disabled={loading || !id}>
-            {q}
+            {t(q)}
             <ArrowUpRight size={13} />
           </button>
         ))}
@@ -3615,37 +3530,33 @@ function Adviser({
       {answer && (
         <div className="adviser-answer">
           <span className="answer-label">
-            <Leaf size={16} />
-            Odpověď podle dostupných podkladů
-          </span>
-          <p style={{ whiteSpace: "pre-line" }}>{answer.answer}</p>
+            <Leaf size={16} />{t("Odpověď podle dostupných podkladů")}</span>
+          <p style={{ whiteSpace: "pre-line" }}>{t(answer.answer)}</p>
           {answer.sources && answer.sources.length > 0 && (
             <div className="answer-sources">
-              <h4>Zdroje a související podklady</h4>
+              <h4>{t("Zdroje a související podklady")}</h4>
               {answer.sources.map((s, i) => (
                 <div key={i}>
                   {s.url ? (
                     <a href={s.url} target="_blank" rel="noreferrer">
                       <FileText size={14} />
-                      {s.title}
+                      {t(s.title)}
                       <ArrowUpRight size={12} />
                     </a>
                   ) : (
-                    <strong>{s.title}</strong>
+                    <strong>{t(s.title)}</strong>
                   )}
-                  {s.excerpt && <p>{s.excerpt}</p>}
+                  {s.excerpt && <p>{t(s.excerpt)}</p>}
                 </div>
               ))}
             </div>
           )}
-          {answer.mode && <small className="small-muted">{answer.mode}</small>}
+          {answer.mode && <small className="small-muted">{t(answer.mode)}</small>}
         </div>
       )}
       {loading && (
         <div className="adviser-loading">
-          <Loader2 className="spin" size={18} />
-          Procházím dostupné podklady…
-        </div>
+          <Loader2 className="spin" size={18} />{t("Procházím dostupné podklady…")}</div>
       )}
       <form
         className="adviser-composer"
@@ -3656,24 +3567,21 @@ function Adviser({
       >
         <textarea
           required
-          aria-label="Dotaz na rádce"
+          aria-label={t("Dotaz na rádce")}
           rows={2}
-          placeholder="Na co se chcete zeptat k této smlouvě?"
+          placeholder={t("Na co se chcete zeptat k této smlouvě?")}
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
         />
         <button
           className="button primary"
           disabled={loading || !question.trim() || !id}
-          aria-label="Odeslat dotaz"
+          aria-label={t("Odeslat dotaz")}
         >
           <Send size={18} />
         </button>
       </form>
-      <small className="small-muted">
-        Pokud ve zdrojích odpověď chybí, ověřte ji se SFJ. Rádce nepřidává
-        vlastní pravidla.
-      </small>
+      <small className="small-muted">{t("Pokud ve zdrojích odpověď chybí, ověřte ji se SFJ. Rádce nepřidává vlastní pravidla.")}</small>
     </div>
   );
 }

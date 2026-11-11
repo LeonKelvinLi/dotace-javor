@@ -113,3 +113,12 @@ test('an unlabelled currency is not assumed to be CZK', () => {
   assert.equal(p.sourceAmount,1210); assert.equal(p.currency,undefined); assert.equal(p.fields.amount,undefined);
   assert.ok(p.warnings.some(w=>w.includes('Měna')));
 });
+
+test('sample receipts with Czech labels without accents retain total and actual payment date', () => {
+  const fields = parseDocumentText('Doklad: FV-2026-101\nDodavatel: Sport Vzor s.r.o.\nPopis: Treninkove mice a pomucky\nCastka: 18500.00 CZK\nDatum uhrady: 2026-09-15\nZpusob uhrady: Banka');
+  assert.equal(fields.amount, 18500);
+  assert.equal(fields.claimed, 18500);
+  assert.equal(fields.date, '2026-09-15');
+  assert.equal(fields.payment, 'bank');
+  assert.equal(fields.category, 'materials');
+});
