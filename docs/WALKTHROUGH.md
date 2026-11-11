@@ -4,7 +4,7 @@ Open https://dotace-javor-99x6.onrender.com/. Choose **Organization** or **Feder
 
 ## Try the sample first
 
-1. Sign in as **Organization**, then click **Vyzkoušet ukázkové vyúčtování / Try the sample settlement**.
+1. Sign in as **Organization**, then click **Otevřít mé vyúčtování / Open my settlement**. This opens a draft if one is available; submitted settlements remain visible in the list.
 2. Follow the green next-step panel. It opens the next expense needing attention.
 3. Document reading runs automatically. Compare the details with the original, explain any warning, check the confirmation box, then **Uložit doklad / Save expense**.
 4. When all expenses are checked, the next action becomes **Zkontrolovat a odeslat / Review and submit**. Read the declaration before submitting.

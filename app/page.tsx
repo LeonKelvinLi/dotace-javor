@@ -301,6 +301,7 @@ function Workspace() {
   const demo = Boolean(state?.capabilities.demo);
   const orgMode = !federation || preview;
   const contract = state?.contracts.find((c) => c.id === contractId);
+  const starterContract = state?.contracts.find((c) => ['draft', 'changes'].includes(c.status)) || state?.contracts[0];
   const organization = state?.organizations.find(
     (o) => o.id === (contract?.organizationId || organizationId),
   );
@@ -1108,7 +1109,7 @@ function Workspace() {
                   {demo&&<p className="guide-sample">{t("Ukázkové organizace a doklady slouží k vyzkoušení celého postupu.")}</p>}
                 </div>
                 <div className="guide-actions">
-                  {!federation && state.contracts.some(c => c.id === 'contract-haj') && <button className="button primary" onClick={() => openContract('contract-haj')}>{t("Vyzkoušet ukázkové vyúčtování")}<ArrowRight size={16} /></button>}
+                  {!federation && starterContract && <button className="button primary" onClick={() => openContract(starterContract.id)}>{t("Otevřít mé vyúčtování")}<ArrowRight size={16} /></button>}
                   {federation && reviewQueue.length>0 && <button className="button primary" onClick={openReviewQueue}><ShieldCheck size={16}/>{t('Zkontrolovat odeslaná vyúčtování')} ({reviewQueue.length})</button>}
                   {federation && <button className={!state.organizations.length?"button primary":"button secondary"} onClick={() => { goHome('organizations'); setModal({type:'organization'}); }}>{t("Založit vlastní organizaci")}</button>}
                 </div>
@@ -1257,10 +1258,10 @@ function Workspace() {
                             <td>
                               <button
                                 className="text-link contract-action"
-                                aria-label={t(`${c.status === 'submitted' ? 'Zkontrolovat výdaje' : 'Otevřít smlouvu'} ${c.number}`)}
+                                aria-label={`${t(c.status === 'submitted' && federation ? 'Zkontrolovat výdaje' : 'Otevřít smlouvu')} ${c.number}`}
                                 onClick={() => { openContract(c.id); if (c.status === 'submitted' && federation) setPreview(false); }}
                               >
-                                {t(c.status === 'approved' ? 'Zobrazit výsledek' : c.status === 'submitted' ? 'Zkontrolovat výdaje' : 'Pokračovat')}
+                                {t(c.status === 'approved' ? 'Zobrazit výsledek' : c.status === 'submitted' ? federation ? 'Zkontrolovat výdaje' : 'Zobrazit vyúčtování' : 'Pokračovat')}
                               </button>
                             </td>
                           </tr>

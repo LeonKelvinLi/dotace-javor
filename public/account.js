@@ -16,10 +16,12 @@ document
   .querySelectorAll("[data-lang]")
   .forEach((e) => e.addEventListener("click", () => language(e.dataset.lang)));
 document.querySelectorAll("[data-demo-email]").forEach((choice) => {
-  choice.addEventListener("change", () => {
+  const fillAccount = () => {
     document.getElementById("email").value = choice.dataset.demoEmail;
     document.getElementById("password").value = choice.dataset.demoPassword;
-  });
+  };
+  choice.addEventListener("change", fillAccount);
+  choice.addEventListener("click", fillAccount);
 });
 document.getElementById("email")?.addEventListener("input", (e) => {
   document.querySelectorAll("[data-demo-email]").forEach((choice) => {
