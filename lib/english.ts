@@ -1,4 +1,6 @@
 export const english: Record<string, string> = {
+  'Otevřít mé vyúčtování': 'Open my settlement',
+  'Zobrazit vyúčtování': 'View settlement',
   'Kontrolor federace': 'Federation reviewer',
   'Správce FK Háj': 'FK Háj administrator',
   'Otevřete odeslané vyúčtování, posuďte každý výdaj a potom schvalte celé vyúčtování. Výdaje připravuje účet organizace.': 'Open a submitted settlement, review each expense, then approve the whole settlement. The organization account prepares the expenses.',
