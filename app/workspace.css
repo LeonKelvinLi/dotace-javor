@@ -346,6 +346,11 @@
 .advanced-options[open]>summary {margin-bottom:18px;}
 
 .demo-notice {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px 20px;
   margin-bottom: 20px;
   padding: 10px 14px;
   border-left: 3px solid #58766a;
@@ -354,6 +359,8 @@
   font-size: 13px;
   line-height: 1.5;
 }
+.demo-notice > span { flex: 1 1 380px; }
+.demo-notice > a { color: #315746; text-decoration: underline; text-underline-offset: 3px; font-weight: 600; }
 
 @media screen {
   .review-workflow {margin:0 0 24px;border:1px solid #cad7cf;border-radius:5px;overflow:hidden;background:#fff;}

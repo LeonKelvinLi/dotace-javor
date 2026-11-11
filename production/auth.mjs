@@ -6,6 +6,8 @@ import {
 } from "node:crypto";
 import { promisify } from "node:util";
 import { createClient } from "@supabase/supabase-js";
+import { demoAccounts } from "./demo-accounts.mjs";
+import { loginPage } from "./login-page.mjs";
 const scrypt = promisify(derive);
 export const hash = (value) => createHash("sha256").update(value).digest("hex");
 export const escape = (value) =>
@@ -36,7 +38,7 @@ export function createAuth({
   enqueue,
   supportEmail,
 }) {
-  const managed = Boolean(supabaseUrl && supabaseKey);
+  const managed = !demo && Boolean(supabaseUrl && supabaseKey);
   const client = () =>
     createClient(supabaseUrl, supabaseKey, {
       auth: {
@@ -86,14 +88,6 @@ export function createAuth({
     res.setHeader("Set-Cookie", cookie("dotace_session", raw));
   }
   async function user(req, res) {
-    if (demo)
-      return {
-        userId: "render:demo@javor.example",
-        email: "demo@javor.example",
-        displayName: "Demo",
-        fullName: null,
-        aal: "aal2",
-      };
     const c = cookies(req);
     if (managed) {
       const auth = client();
@@ -135,11 +129,12 @@ export function createAuth({
           .bind(hash(c.dotace_session), Date.now())
           .first()
       : null;
-    return s
+    const demoAccount = demoAccounts.find((a) => a.email === s?.email);
+    return s && (!demo || demoAccount)
       ? {
           userId: `render:${s.email}`,
           email: s.email,
-          displayName: s.email,
+          displayName: demoAccount && demo ? demoAccount.name : s.email,
           fullName: null,
           aal: "aal2",
         }
@@ -166,6 +161,11 @@ export function createAuth({
     };
     const copy = (cs, en) =>
       `<span data-cs="${escape(cs)}" data-en="${escape(en)}">${escape(cs)}</span>`;
+    if (kind === "login") {
+      res.writeHead(error ? 400 : 200, { "Content-Type": "text/html; charset=utf-8" });
+      res.end(loginPage({ copy, escape, demo, error, message, email, next, supportEmail }));
+      return;
+    }
     const title = titles[kind];
     const form =
       kind === "account"
@@ -200,6 +200,7 @@ export function createAuth({
   async function route(req, res, url, body, actor) {
     if (
       demo &&
+      !["/auth/login", "/login", "/signin-with-chatgpt", "/signout-with-chatgpt"].includes(url.pathname) &&
       (url.pathname.startsWith("/auth/") ||
         [
           "/login",
@@ -210,12 +211,15 @@ export function createAuth({
           "/signout-with-chatgpt",
         ].includes(url.pathname))
     ) {
-      redirect(res, "/");
+      if (req.method === "POST") {
+        res.writeHead(403, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Zkušební účty nelze měnit. / Demo accounts cannot be changed." }));
+      } else redirect(res, "/login");
       return true;
     }
     if (req.method === "GET") {
       if (["/login", "/signin-with-chatgpt"].includes(url.pathname)) {
-        const invite = url.searchParams.get("invite") || "";
+        const invite = demo ? "" : url.searchParams.get("invite") || "";
         page(res, {
           kind: invite ? "register" : "login",
           invite,
@@ -328,6 +332,7 @@ export function createAuth({
         email,
         invite,
         reset: f.get("reset") || "",
+        next: safePath(f.get("next")),
       });
     if (
       ["register", "password"].includes(kind) &&

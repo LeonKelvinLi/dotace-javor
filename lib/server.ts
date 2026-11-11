@@ -57,7 +57,7 @@ export async function identity():Promise<IdentityContext>{
   const member:Membership={id:id('member'),userId:user.userId,email:user.email.toLowerCase(),name:user.displayName,role:'federation',organizationId:''};
   // The Sites deployment is owner-private. A singleton lock elects exactly one
   // owner even when two first requests arrive together; later users need invites.
-  if(env.NATIVE_RUNTIME!=='true'||env.DEMO_MODE==='true'||user.email.toLowerCase()===env.OWNER_EMAIL?.toLowerCase())await db.batch([
+  if(env.NATIVE_RUNTIME!=='true'||user.email.toLowerCase()===env.OWNER_EMAIL?.toLowerCase())await db.batch([
     db.prepare("INSERT OR IGNORE INTO bootstrap (id,owner_id,seeded) VALUES ('owner',?,0)").bind(user.userId),
     db.prepare("INSERT OR IGNORE INTO memberships (id,user_id,organization_id,role,email,data) SELECT ?,?,?,?,?,? WHERE EXISTS (SELECT 1 FROM bootstrap WHERE id='owner' AND owner_id=?)").bind(member.id,member.userId,'',member.role,member.email,json(member),user.userId),
   ]);
@@ -109,7 +109,7 @@ async function saveContractState(ctx:ServerContext,c:Contract,previous:Contract,
 
 export async function command(ctx:ServerContext,action:string,raw:unknown):Promise<Record<string,unknown>>{
   const p=record(raw);
-  if(env.DEMO_MODE==='true'&&action==='invite')throw new ApiError(403,'Veřejná ukázka nepoužívá účty ani pozvánky.');
+  if(env.DEMO_MODE==='true'&&action==='invite')throw new ApiError(403,'Ukázka používá dva zkušební účty. Pozvánky jsou dostupné v klientské verzi.');
   if(action==='saveOrganization'){
     const source=record(p.organization??p);const key=typeof source.id==='string'?source.id:'';const old=key?await one<Organization>(ctx.db,'organizations',key):null;
     if(old)manager(ctx,old.id);else federation(ctx);
@@ -194,7 +194,7 @@ export async function command(ctx:ServerContext,action:string,raw:unknown):Promi
     await ctx.db.batch([...emailStatement,ctx.db.prepare('INSERT INTO invitations (id,organization_id,email,role,token_hash,expires_at,used_by,created_by) VALUES (?,?,?,?,?,?,NULL,?)').bind(id('invite'),organizationId,email,role,await digest(new TextEncoder().encode(token)),expiresAt,ctx.user.userId),auditStatement(ctx,'member.invited',`Připraven jednorázový odkaz pro ${email} · ${role}. ${env.ENCRYPT_EMAIL?'E-mail zařazen do fronty.':'E-mail neodeslán.'}`,organizationId)]);return {inviteUrl:`/?invite=${token}`,expiresAt};
   }
   if(['disableMember','enableMember'].includes(action)){
-    if(env.DEMO_MODE==='true')throw new ApiError(403,'Účty nejsou součástí veřejné ukázky.');
+    if(env.DEMO_MODE==='true')throw new ApiError(403,'Zkušební účty nelze měnit.');
     const member=await one<Membership>(ctx.db,'memberships',text(p.id,'Člen',100,true));
     if(!member)throw new ApiError(404,'Člen nebyl nalezen.');
     if(member.role==='federation')federation(ctx);else manager(ctx,member.organizationId);
@@ -214,7 +214,7 @@ export async function command(ctx:ServerContext,action:string,raw:unknown):Promi
   throw new ApiError(400,'Neznámá operace. Obnovte aplikaci.');
 }
 export async function acceptInvite(ctx:IdentityContext,token:unknown){
-  if(env.DEMO_MODE==='true')throw new ApiError(403,'Veřejná ukázka nepoužívá účty ani pozvánky.');
+  if(env.DEMO_MODE==='true')throw new ApiError(403,'Ukázka používá dva zkušební účty. Pozvánky jsou dostupné v klientské verzi.');
   const hash=await digest(new TextEncoder().encode(text(token,'Pozvánka',128,true)));
   const invite=await ctx.db.prepare('SELECT * FROM invitations WHERE token_hash=?').bind(hash).first<{id:string;organization_id:string;email:string;role:'federation'|'org_admin'|'member';expires_at:string;used_by:string|null}>();
   if(!invite||invite.used_by||invite.expires_at<now())throw new ApiError(400,'Pozvánka už není platná. Požádejte o nový odkaz.');if(invite.email!==ctx.user.email.toLowerCase())throw new ApiError(403,`Pozvánka je určena pro ${invite.email}. Přihlaste se tímto účtem.`);if(ctx.member)throw new ApiError(409,'Tento účet už má členství. Změnu organizace musí vyřešit správce.');

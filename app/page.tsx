@@ -557,14 +557,14 @@ function Workspace() {
                     : "Člen organizace")}
               </small>
             </span>
-            {!demo && <a
+            <a
               aria-label={t("Odhlásit")}
               title={t("Odhlásit")}
               href="/signout-with-chatgpt?return_to=/"
               target="_top"
             >
               <LogOut size={16} />
-            </a>}
+            </a>
           </div>
         </div>
       </aside>
@@ -590,7 +590,7 @@ function Workspace() {
             {demo&&<span className="pilot"><span />{t("Pilot · fiktivní data")}</span>}
             {!demo&&<a href="/account" className="button secondary">{t('Můj účet')}</a>}
             {!demo&&state.membership.role!=='member'&&<a href="/access" className="button secondary">{t('Správa přístupů')}</a>}
-            {federation && (
+            {federation && !demo && (
               <label className="preview-switch">
                 <input
                   type="checkbox"
@@ -602,7 +602,7 @@ function Workspace() {
           </div>
         </header>
         <main className="main-content" key={contractId ? `contract-${contractId}` : `${view}-${organizationId}`}>
-          {demo && <div className="demo-notice no-print">{t("Veřejná ukázka bez přihlášení. Prostor je sdílený, používejte pouze fiktivní doklady.")}</div>}
+          {demo && <div className="demo-notice no-print"><span>{t(federation ? "Federace · Zkontrolujte odeslané výdaje v sekci Ke schválení." : "Organizace FK Háj · Přidejte doklady ke své smlouvě a odešlete vyúčtování federaci.")} {t("Zkušební účty · používejte pouze fiktivní doklady.")}</span><a href="/signout-with-chatgpt">{t("Odhlásit a změnit účet")}</a></div>}
           {error && (
             <div className="notice error no-print" role="alert">
               <TriangleAlert size={18} />
@@ -1086,8 +1086,8 @@ function Workspace() {
             <>
               <div className="page-heading">
                 <div>
-                  <h1>{t(statusFilter === 'submitted' ? 'Vyúčtování ke schválení' : "Smlouvy")}</h1>
-                  <p>{t(statusFilter === 'submitted' ? '1. Rozhodněte o každém výdaji. 2. Schvalte celé vyúčtování. Začněte tlačítkem Zkontrolovat výdaje.' : "Vyberte smlouvu a pokračujte v přípravě nebo kontrole výdajů.")}</p>
+                  <h1>{t(statusFilter === 'submitted' ? federation ? 'Vyúčtování ke schválení' : 'Odesláno federaci' : "Smlouvy")}</h1>
+                  <p>{t(statusFilter === 'submitted' ? federation ? '1. Rozhodněte o každém výdaji. 2. Schvalte celé vyúčtování. Začněte tlačítkem Zkontrolovat výdaje.' : 'Vyúčtování je u federace. Zde sledujte výsledek kontroly a případné žádosti o doplnění.' : "Vyberte smlouvu a pokračujte v přípravě nebo kontrole výdajů.")}</p>
                 </div>
                 <div className="heading-actions">
                   {federation && !preview && statusFilter !== 'submitted' && <button className="button primary" disabled={!state.organizations.length} onClick={()=>setModal({type:"contract",organizationId:state.organizations.length===1?state.organizations[0].id:""})}><Plus size={16}/><span>{t("Nová smlouva")}</span></button>}
@@ -1103,12 +1103,12 @@ function Workspace() {
               </div>
               {statusFilter !== 'submitted' && <section className="start-guide no-print" aria-label={t("Začínáme")}>
                 <div>
-                  <h2>{t(demo ? "Vyzkoušejte vyúčtování dotace" : federation ? "Spravujete dotace za federaci" : "Připravte vyúčtování své organizace")}</h2>
-                  <p>{t(demo ? "Otevřete ukázkové vyúčtování, nahrajte testovací fakturu a zkontrolujte doplněné údaje. Pak si vyzkoušejte odeslání, kontrolu a stažení souhrnu. Celý postup zvládnete sami." : federation ? "Založte organizaci, přidejte její smlouvu a pozvěte správce klubu. Klub nahraje výdaje a odešle je vám ke kontrole." : "Otevřete svou smlouvu, nahrajte faktury nebo účtenky, zkontrolujte doplněné údaje a odešlete vyúčtování federaci.")}</p>
+                  <h2>{t(federation ? "Spravujete dotace za federaci" : "Připravte vyúčtování své organizace")}</h2>
+                  <p>{t(federation ? demo ? "Otevřete odeslané vyúčtování, posuďte každý výdaj a potom schvalte celé vyúčtování. Výdaje připravuje účet organizace." : "Založte organizaci, přidejte její smlouvu a pozvěte správce klubu. Klub nahraje výdaje a odešle je vám ke kontrole." : "Otevřete svou smlouvu, nahrajte faktury nebo účtenky, zkontrolujte doplněné údaje a odešlete vyúčtování federaci.")}</p>
                   {demo&&<p className="guide-sample">{t("Ukázkové organizace a doklady slouží k vyzkoušení celého postupu.")}</p>}
                 </div>
                 <div className="guide-actions">
-                  {state.contracts.some(c => c.id === 'contract-haj') && <button className="button primary" onClick={() => openContract('contract-haj')}>{t("Vyzkoušet ukázkové vyúčtování")}<ArrowRight size={16} /></button>}
+                  {!federation && state.contracts.some(c => c.id === 'contract-haj') && <button className="button primary" onClick={() => openContract('contract-haj')}>{t("Vyzkoušet ukázkové vyúčtování")}<ArrowRight size={16} /></button>}
                   {federation && reviewQueue.length>0 && <button className="button primary" onClick={openReviewQueue}><ShieldCheck size={16}/>{t('Zkontrolovat odeslaná vyúčtování')} ({reviewQueue.length})</button>}
                   {federation && <button className={!state.organizations.length?"button primary":"button secondary"} onClick={() => { goHome('organizations'); setModal({type:'organization'}); }}>{t("Založit vlastní organizaci")}</button>}
                 </div>
@@ -1131,7 +1131,7 @@ function Workspace() {
                     state.contracts.filter((c) => c.status === "submitted")
                       .length,
                   )}
-                  hint="Zobrazit ke kontrole →"
+                  hint={federation ? "Zobrazit ke kontrole →" : "Zobrazit odeslaná →"}
                   onClick={()=>setStatusFilter(statusFilter==='submitted'?'':'submitted')}
                   active={statusFilter==='submitted'}
                   icon={<Clock3 size={19} />}
@@ -1371,7 +1371,7 @@ function Workspace() {
                     {!state.members.some(
                       (m) => m.organizationId === organization.id,
                     ) && (
-                      <p className="muted">{t(demo ? "V ukázce spravujete organizaci sami. Účty ani pozvánky nejsou potřeba." : "Zatím žádný člen. Pozvěte správce organizace.")}</p>
+                      <p className="muted">{t(demo ? "Zkušební účet organizace je přiřazen klubu FK Háj. Ostatní organizace slouží jako příklady pro federaci." : "Zatím žádný člen. Pozvěte správce organizace.")}</p>
                     )}
                   </section>
                 </div>

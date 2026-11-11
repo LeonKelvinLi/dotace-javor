@@ -1,5 +1,6 @@
 export { env, withIdentity } from "./context";
 export { requireActor, identity, readState, command } from "../lib/server";
+export { seedDemo } from "../lib/seed";
 import * as app from "../app/api/app/route";
 import * as files from "../app/api/files/route";
 import * as registry from "../app/api/registry/route";
