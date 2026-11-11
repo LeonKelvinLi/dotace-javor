@@ -15,7 +15,7 @@ Use fictional records for practice. Real submissions and approval decisions belo
 
 ## Set up your own workspace
 
-1. Click **Založit vlastní organizaci / Set up your own organization**. Enter its name and eight-digit company ID. You can attach its document for autofill or explicitly look it up in ARES. Check the result and save.
+1. Click **Založit vlastní organizaci / Set up your own organization**. Enter its name, eight-digit company ID and registered address. You can attach its document for autofill or explicitly look it up in ARES. Check the result and save.
 2. The saved organization opens automatically. Click **Založit smlouvu / Create contract**, enter the grant and dates, then save. Optional cash/payment conditions are collapsed under **Další podmínky a hotovost / Other conditions and cash payments**.
 3. The saved contract opens automatically. Add the signed contract and relevant policy files under **Smlouva a pravidla / Contract and rules**.
 4. From the organization profile, **Pozvat člena / Invite member** creates an invitation link. Copy and share it with the intended recipient yourself; the app does not send an email. The recipient sets up their own account with that link.
