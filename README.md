@@ -1,8 +1,8 @@
 # Dotace · Sportovní federace Javor
 
-[Open the deployed app](https://dotace-javor-pilot.splk6.chatgpt.site) · [Source repository](https://github.com/LeonKelvinLi/dotace-javor)
+[Open the homework demo](https://dotace-javor-99x6.onrender.com/) · [Source repository](https://github.com/LeonKelvinLi/dotace-javor)
 
-The application and repository are private to the owner; reviewer access must be arranged separately.
+The Render demo opens without a login. It is a shared fictional workspace: use test documents only. Start with **English → Try the sample settlement**. The source repository remains private; repository access must be arranged separately.
 
 A working Czech grant-settlement application built from the fictional client handoff. The original sales prototype and exercise packet are preserved in the parent directory; this folder is the implemented application.
 
@@ -31,7 +31,7 @@ npm run build
 ## Included
 
 - Organizations, contacts and statutory representatives; contracts and supporting conditions, decisions and amendments.
-- Real sign-in and server-enforced federation / organization administrator / member permissions.
+- An explicit login-free homework mode on Render, with isolated demo storage. Authenticated mode retains server-enforced federation / organization administrator / member permissions.
 - Original PDF, JPG, PNG and WebP uploads, private viewing, SHA-256, 10 MB per-file limit.
 - Actual PDF text extraction and local Czech/English OCR for photographs and scanned PDFs. OCR assets are served by this app.
 - Editable extraction proposals, all simultaneous review findings, separate organization and federation decisions.
@@ -48,7 +48,7 @@ npm run build
 - [Short walkthrough and acceptance checklist](docs/WALKTHROUGH.md)
 - [Verification record](docs/VERIFICATION.md)
 
-Initial hosting is private to the owner. A reviewer needs both hosting access and an application invitation. No email is sent by the app. Fictional fixtures and their PDF originals are clearly labelled; no original client system is accessed. The client supplied no current signed contracts, authoritative SFJ instructions or ASP decision, so real eligibility cannot be inferred from the 2025 training extracts.
+The Render homework demo needs no account or invitation; one demo identity can exercise the whole workflow. Authenticated mode is retained for environments that need separate accounts. No email is sent by the app. Fictional fixtures and their PDF originals are clearly labelled; no original client system is accessed. The client supplied no current signed contracts, authoritative SFJ instructions or ASP decision, so real eligibility cannot be inferred from the 2025 training extracts.
 
 ## AI configuration
 
@@ -57,3 +57,5 @@ Secrets belong in ignored `.dev.vars` for local Workers and in the hosting platf
 ## Hosting
 
 React / Vinext runs on a Cloudflare Worker. D1 stores records and R2 stores originals; `.openai/hosting.json` declares the bindings. The Sites deployment workflow builds and publishes the Worker and applies production migrations. Production identity headers must come from the trusted hosting authentication boundary. See the handover for moving to another host and replacing that boundary safely.
+
+For Render configuration and local login-free startup, see [the hosting adapter](render/README.md). `DEMO_MODE=true` uses a separate public-demo storage directory and a fixed demo identity. Invitations and paid OpenAI integration are disabled in that mode.

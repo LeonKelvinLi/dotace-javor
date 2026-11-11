@@ -1,6 +1,6 @@
 # Using Dotace Javor
 
-Open https://dotace-javor-99x6.onrender.com/ and sign in with your app email and password. The app starts in Czech; the **English** button changes the interface and remembers your preference. Original document content remains in its original language.
+Open https://dotace-javor-99x6.onrender.com/. **No login or password is needed for this homework demo.** This is a shared public workspace: use fictional test documents only. The app starts in Czech; the **English** button changes the interface and remembers your preference. Original document content remains in its original language.
 
 ## Try the sample first
 
@@ -18,8 +18,9 @@ Use fictional records for practice. Real submissions and approval decisions belo
 1. Click **Založit vlastní organizaci / Set up your own organization**. Enter its name, eight-digit company ID and registered address. You can attach its document for autofill or explicitly look it up in ARES. Check the result and save.
 2. The saved organization opens automatically. Click **Založit smlouvu / Create contract**, enter the grant and dates, then save. Optional cash/payment conditions are collapsed under **Další podmínky a hotovost / Other conditions and cash payments**.
 3. The saved contract opens automatically. Add the signed contract and relevant policy files under **Smlouva a pravidla / Contract and rules**.
-4. From the organization profile, **Pozvat člena / Invite member** creates an invitation link. Copy and share it with the intended recipient yourself; the app does not send an email. The recipient sets up their own account with that link.
-5. The organization adds its expenses and submits them. You review them from the **Ke kontrole / To review** filter.
+4. Add expenses, check the autofilled details, save and submit. You can then review them yourself from the **Ke kontrole / To review** filter. The demo lets you try both sides of the workflow.
+
+In authenticated deployments only, **Pozvat člena / Invite member** creates an invitation link for a separate organization account. Those account controls are hidden in the public demo.
 
 ## What automatic reading does
 
@@ -29,7 +30,7 @@ PDF/image uploads are limited to 10 MB and PDFs to 10 pages. A failure leaves th
 
 Partial claims need an explanation. Missing attachments and invalid amounts block submission. Another company's expense cannot be made eligible by adding a comment. Cash rules must come from the applicable contract and confirmed federation policy.
 
-## Acceptance checklist
+## Acceptance checklist for authenticated deployments
 
 Record the actual result and verification date in the delivery record; unchecked boxes are not implied failures or claimed passes.
 

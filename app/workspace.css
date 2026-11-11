@@ -344,3 +344,13 @@
 .advanced-options {margin:18px 0;border-top:1px solid #d6dfd9;padding:16px 0;}
 .advanced-options>summary {cursor:pointer;font-weight:600;font-size:14px;color:#41534a;}
 .advanced-options[open]>summary {margin-bottom:18px;}
+
+.demo-notice {
+  margin-bottom: 20px;
+  padding: 10px 14px;
+  border-left: 3px solid #58766a;
+  background: #edf2ee;
+  color: #43594e;
+  font-size: 13px;
+  line-height: 1.5;
+}

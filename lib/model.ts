@@ -9,7 +9,7 @@ export type AuditEvent = { id: string; at: string; actor: string; organizationId
 export type Membership = { id: string; userId: string; email: string; name: string; role: Role; organizationId: string };
 export type Feedback = { id: string; text: string; at: string; author: string; organizationId: string };
 export type Finding = { code: string; message: string; severity: 'error' | 'warning' };
-export type AppState = { user: { userId: string; email: string; displayName: string }; membership: Membership; organizations: Organization[]; contracts: Contract[]; items: Item[]; files: StoredFile[]; audit: AuditEvent[]; members: Membership[]; feedback: Feedback[]; capabilities: { extraction: string; adviser: string } };
+export type AppState = { user: { userId: string; email: string; displayName: string }; membership: Membership; organizations: Organization[]; contracts: Contract[]; items: Item[]; files: StoredFile[]; audit: AuditEvent[]; members: Membership[]; feedback: Feedback[]; capabilities: { extraction: string; adviser: string; demo?: boolean } };
 export const categoryLabels: Record<Category, string> = { materials: 'Spotřeba materiálu', services: 'Služby včetně OSVČ', wages: 'Mzdy včetně odvodů' };
 export const declaration = 'Potvrzuji pravdivost a věcnou správnost údajů uvedených v tomto vyúčtování. Údaje jsou zavedené a zaúčtované v našem účetnictví nebo evidenci. Za věcnou správnost a skutečné uskutečnění plnění odpovídá naše organizace.';
 export const money = (v: number) => new Intl.NumberFormat('cs-CZ', { style: 'currency', currency: 'CZK', maximumFractionDigits: 2 }).format(v);

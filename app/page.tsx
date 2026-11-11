@@ -291,6 +291,7 @@ function Workspace() {
     return result.file as StoredFile;
   };
   const federation = state?.membership.role === "federation";
+  const demo = Boolean(state?.capabilities.demo);
   const orgMode = !federation || preview;
   const contract = state?.contracts.find((c) => c.id === contractId);
   const organization = state?.organizations.find(
@@ -541,14 +542,14 @@ function Workspace() {
                     : "Člen organizace")}
               </small>
             </span>
-            <a
+            {!demo && <a
               aria-label={t("Odhlásit")}
               title={t("Odhlásit")}
               href="/signout-with-chatgpt?return_to=/"
               target="_top"
             >
               <LogOut size={16} />
-            </a>
+            </a>}
           </div>
         </div>
       </aside>
@@ -584,6 +585,7 @@ function Workspace() {
           </div>
         </header>
         <main className="main-content" key={contractId ? `contract-${contractId}` : `${view}-${organizationId}`}>
+          {demo && <div className="demo-notice no-print">{t("Veřejná ukázka bez přihlášení. Prostor je sdílený, používejte pouze fiktivní doklady.")}</div>}
           {error && (
             <div className="notice error no-print" role="alert">
               <TriangleAlert size={18} />
@@ -597,7 +599,7 @@ function Workspace() {
               </button>
             </div>
           )}
-          {inviteToken && (
+          {inviteToken && !demo && (
             <div className="notice warning no-print">
               <Users size={19} />
               <div>
@@ -1083,8 +1085,8 @@ function Workspace() {
               </div>
               <section className="start-guide no-print" aria-label={t("Začínáme")}>
                 <div>
-                  <h2>{t(federation ? "Spravujete dotace za federaci" : "Připravte vyúčtování své organizace")}</h2>
-                  <p>{t(federation ? "Založte organizaci, přidejte její smlouvu a pozvěte správce klubu. Klub nahraje výdaje a odešle je vám ke kontrole." : "Otevřete svou smlouvu, nahrajte faktury nebo účtenky, zkontrolujte doplněné údaje a odešlete vyúčtování federaci.")}</p>
+                  <h2>{t(demo ? "Vyzkoušejte vyúčtování dotace" : federation ? "Spravujete dotace za federaci" : "Připravte vyúčtování své organizace")}</h2>
+                  <p>{t(demo ? "Otevřete ukázkové vyúčtování, nahrajte testovací fakturu a zkontrolujte doplněné údaje. Pak si vyzkoušejte odeslání, kontrolu a stažení souhrnu. Celý postup zvládnete sami." : federation ? "Založte organizaci, přidejte její smlouvu a pozvěte správce klubu. Klub nahraje výdaje a odešle je vám ke kontrole." : "Otevřete svou smlouvu, nahrajte faktury nebo účtenky, zkontrolujte doplněné údaje a odešlete vyúčtování federaci.")}</p>
                   <p className="guide-sample">{t("Ukázkové organizace a doklady slouží k vyzkoušení celého postupu.")}</p>
                 </div>
                 <div className="guide-actions">
@@ -1289,7 +1291,7 @@ function Workspace() {
                         }
                       >{t("Upravit profil")}</button>
                     )}
-                    {(federation || state.membership.role === "org_admin") && (
+                    {!demo && (federation || state.membership.role === "org_admin") && (
                       <button
                         className="button secondary"
                         onClick={() =>
@@ -1350,7 +1352,7 @@ function Workspace() {
                     {!state.members.some(
                       (m) => m.organizationId === organization.id,
                     ) && (
-                      <p className="muted">{t("Zatím žádný člen. Pozvěte správce organizace.")}</p>
+                      <p className="muted">{t(demo ? "V ukázce spravujete organizaci sami. Účty ani pozvánky nejsou potřeba." : "Zatím žádný člen. Pozvěte správce organizace.")}</p>
                     )}
                   </section>
                 </div>
@@ -1400,17 +1402,17 @@ function Workspace() {
                   <div>
                     <div className="eyebrow">{t("SPOLUPRÁCE")}</div>
                     <h1>{t("Organizace a lidé")}</h1>
-                    <p>{t("Každá organizace má vlastní smlouvy a členy. Otevřete profil pro přidání smlouvy nebo pozvání správce klubu.")}</p>
+                    <p>{t(demo ? "Otevřete profil organizace a přidejte její smlouvu. V ukázce můžete vyzkoušet celý postup sami." : "Každá organizace má vlastní smlouvy a členy. Otevřete profil pro přidání smlouvy nebo pozvání správce klubu.")}</p>
                   </div>
                   {federation && !preview && (
                     <div className="heading-actions">
-                      <button
+                      {!demo && <button
                         className="button secondary"
                         onClick={() =>
                           setModal({ type: "invite", organizationId: "" })
                         }
                       >
-                        <Users size={16} />{t("Pozvat správce SFJ")}</button>
+                        <Users size={16} />{t("Pozvat správce SFJ")}</button>}
                       <button
                         className="button primary"
                         onClick={() => setModal({ type: "organization" })}

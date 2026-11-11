@@ -5,15 +5,18 @@ import {randomBytes,scryptSync,timingSafeEqual,createHash} from 'node:crypto';
 import {DatabaseSync} from 'node:sqlite';
 import {Miniflare,convertV4MiniflareOptions} from 'miniflare';
 import {Readable} from 'node:stream';
-const data=path.resolve(process.env.DATA_DIR||'.render-data');mkdirSync(data,{recursive:true,mode:0o700});
-const adminEmail=(process.env.ADMIN_EMAIL||'admin@javor.example').toLowerCase();
-if(!process.env.ADMIN_PASSWORD||process.env.ADMIN_PASSWORD.length<20)throw new Error('Set ADMIN_PASSWORD to a random secret of at least 20 characters.');
+// Public homework mode gets its own database and originals. Never expose the
+// existing authenticated workspace when switching this flag on.
+const demoMode=process.env.DEMO_MODE==='true';
+const data=path.resolve(process.env.DATA_DIR||'.render-data',demoMode?'public-demo':'.');mkdirSync(data,{recursive:true,mode:0o700});
+const adminEmail=demoMode?'demo@javor.example':(process.env.ADMIN_EMAIL||'admin@javor.example').toLowerCase();
+if(!demoMode&&(!process.env.ADMIN_PASSWORD||process.env.ADMIN_PASSWORD.length<20))throw new Error('Set ADMIN_PASSWORD to a random secret of at least 20 characters.');
 const auth=new DatabaseSync(path.join(data,'accounts.sqlite'));auth.exec('PRAGMA journal_mode=WAL; CREATE TABLE IF NOT EXISTS accounts(email TEXT PRIMARY KEY,salt TEXT NOT NULL,hash TEXT NOT NULL); CREATE TABLE IF NOT EXISTS sessions(token TEXT PRIMARY KEY,email TEXT NOT NULL,expires INTEGER NOT NULL)');
 function passwordHash(password,salt){return scryptSync(password,salt,64).toString('hex')}
 function addAccount(email,password){const salt=randomBytes(24).toString('hex');auth.prepare('INSERT INTO accounts VALUES (?,?,?)').run(email,salt,passwordHash(password,salt))}
-if(!auth.prepare('SELECT email FROM accounts WHERE email=?').get(adminEmail))addAccount(adminEmail,process.env.ADMIN_PASSWORD);
+if(!demoMode&&!auth.prepare('SELECT email FROM accounts WHERE email=?').get(adminEmail))addAccount(adminEmail,process.env.ADMIN_PASSWORD);
 const config=JSON.parse(readFileSync('dist/server/wrangler.json','utf8'));
-const mf=new Miniflare(convertV4MiniflareOptions({resourcePersistencePath:path.join(data,'worker-storage'),name:'dotace',modules:[{type:'ESModule',path:path.resolve('dist/server/index.js')},...readdirSync('dist/server',{recursive:true}).filter(f=>/\.m?js$/.test(f)&&f!=='index.js').map(f=>({type:'ESModule',path:path.resolve('dist/server',f)}))],modulesRoot:path.resolve('dist/server'),compatibilityDate:config.compatibility_date,compatibilityFlags:['nodejs_compat'],d1Databases:{DB:'dotace'},d1Persist:path.join(data,'d1'),r2Buckets:['BUCKET'],r2Persist:path.join(data,'r2'),bindings:{...(process.env.OPENAI_API_KEY?{OPENAI_API_KEY:process.env.OPENAI_API_KEY}:{}),OPENAI_MODEL:process.env.OPENAI_MODEL||'gpt-5.4-mini'}}));
+const mf=new Miniflare(convertV4MiniflareOptions({resourcePersistencePath:path.join(data,'worker-storage'),name:'dotace',modules:[{type:'ESModule',path:path.resolve('dist/server/index.js')},...readdirSync('dist/server',{recursive:true}).filter(f=>/\.m?js$/.test(f)&&f!=='index.js').map(f=>({type:'ESModule',path:path.resolve('dist/server',f)}))],modulesRoot:path.resolve('dist/server'),compatibilityDate:config.compatibility_date,compatibilityFlags:['nodejs_compat'],d1Databases:{DB:'dotace'},d1Persist:path.join(data,'d1'),r2Buckets:['BUCKET'],r2Persist:path.join(data,'r2'),bindings:{DEMO_MODE:demoMode?'true':'false',...(!demoMode&&process.env.OPENAI_API_KEY?{OPENAI_API_KEY:process.env.OPENAI_API_KEY}:{}),OPENAI_MODEL:process.env.OPENAI_MODEL||'gpt-5.4-mini'}}));
 const db=await mf.getD1Database('DB');
 await db.prepare('CREATE TABLE IF NOT EXISTS render_migrations(name TEXT PRIMARY KEY)').run();
 for(const file of readdirSync('drizzle').filter(f=>f.endsWith('.sql')).sort()){
@@ -21,7 +24,7 @@ for(const file of readdirSync('drizzle').filter(f=>f.endsWith('.sql')).sort()){
  const sql=readFileSync(path.join('drizzle',file),'utf8');
  await db.batch([...sql.split('--> statement-breakpoint').map(s=>s.trim()).filter(Boolean).map(s=>db.prepare(s)),db.prepare('INSERT INTO render_migrations VALUES (?)').bind(file)]);
 }
-const identity=email=>({'oai-authenticated-user-id':`render:${email}`,'oai-authenticated-user-email':email});
+const identity=email=>({'oai-authenticated-user-id':`render:${email}`,'oai-authenticated-user-email':email,...(demoMode?{'oai-authenticated-user-full-name':'Demo','oai-authenticated-user-full-name-encoding':'percent-encoded-utf-8'}:{})});
 // Pin the owner before opening the public listener. No first-visitor admin election.
 const seed=await mf.dispatchFetch('http://localhost/api/app',{headers:identity(adminEmail)});if(!seed.ok)throw new Error(`Owner initialization failed (${seed.status}): ${await seed.text()}`);
 const digest=s=>createHash('sha256').update(s).digest('hex');
@@ -68,8 +71,9 @@ const server=http.createServer(async(req,res)=>{try{
  const redirect=(target,cookie)=>{res.writeHead(303,{Location:target,...(cookie?{'Set-Cookie':cookie}:{})});res.end()};
  if(url.pathname==='/health'){await db.prepare('SELECT 1').first();res.writeHead(200,{'Content-Type':'application/json'});return res.end('{"ok":true}')}
  const token=req.headers.cookie?.split(';').map(x=>x.trim()).find(x=>x.startsWith('dotace_session='))?.slice(15);
- const session=token?auth.prepare('SELECT email FROM sessions WHERE token=? AND expires>?').get(digest(token),Date.now()):null;
+ const session=demoMode?{email:adminEmail}:token?auth.prepare('SELECT email FROM sessions WHERE token=? AND expires>?').get(digest(token),Date.now()):null;
  const secure=origin.startsWith('https:')?'; Secure':'';
+ if(demoMode&&(['/login','/signin-with-chatgpt','/signout-with-chatgpt'].includes(url.pathname)||url.pathname.startsWith('/auth/')))return redirect('/');
  if(url.pathname==='/signout-with-chatgpt'){if(token)auth.prepare('DELETE FROM sessions WHERE token=?').run(digest(token));return redirect('/login',`dotace_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secure}`)}
  if(['/login','/signin-with-chatgpt'].includes(url.pathname)){res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store'});return res.end(loginPage('',url.searchParams.get('invite')||''))}
  if(url.pathname.startsWith('/auth/')&&req.method==='POST'){

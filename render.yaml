@@ -12,6 +12,8 @@ services:
       mountPath: /var/data
       sizeGB: 1
     envVars:
+      - key: DEMO_MODE
+        value: "true"
       - key: ADMIN_EMAIL
         value: admin@javor.example
       - key: ADMIN_PASSWORD

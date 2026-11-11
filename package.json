@@ -16,7 +16,8 @@
     "test": "node --experimental-strip-types --test tests/model.test.ts tests/extraction.test.ts tests/ocr-lifecycle.test.ts tests/autofill.test.ts",
     "test:integration": "node tests/backend-integration.mjs",
     "start:render": "node render/server.mjs",
-    "test:render": "node tests/render-host.test.mjs"
+    "test:render": "node tests/render-host.test.mjs",
+    "test:demo": "node tests/render-demo.test.mjs"
   },
   "dependencies": {
     "@pdf-lib/fontkit": "^1.1.1",

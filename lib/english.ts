@@ -1,4 +1,10 @@
 export const english: Record<string, string> = {
+  "Veřejná ukázka bez přihlášení. Prostor je sdílený, používejte pouze fiktivní doklady.": "Public demo. No login needed. This workspace is shared; use fictional documents only.",
+  "Vyzkoušejte vyúčtování dotace": "Try a grant settlement",
+  "Otevřete ukázkové vyúčtování, nahrajte testovací fakturu a zkontrolujte doplněné údaje. Pak si vyzkoušejte odeslání, kontrolu a stažení souhrnu. Celý postup zvládnete sami.": "Open the sample settlement, upload a test invoice and check the filled details. Then try submitting, reviewing and downloading the summary. You can try every step yourself.",
+  "V ukázce spravujete organizaci sami. Účty ani pozvánky nejsou potřeba.": "You manage the organization yourself in this demo. No accounts or invitations are needed.",
+  "Otevřete profil organizace a přidejte její smlouvu. V ukázce můžete vyzkoušet celý postup sami.": "Open an organization profile to add its contract. You can try the whole workflow yourself in this demo.",
+  "Veřejná ukázka nepoužívá účty ani pozvánky.": "The public demo does not use accounts or invitations.",
   "AI ověřuje dokument…": "AI is checking the document…",
   "AI čtení se nezdařilo.": "AI reading failed.",
   "AUDITNÍ STOPA": "ACTIVITY LOG",

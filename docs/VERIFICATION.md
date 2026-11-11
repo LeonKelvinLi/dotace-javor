@@ -138,3 +138,11 @@ The accounting workspace was redesigned and deployed as `d14e1ec29c964ddb5ea1858
 
 - Live release: Render deployment `dep-dbpsc1e7bikc73b927mg` reports **live** for runtime commit `cc15376dbb3cab8e48efa471d99637f50b4f284b`. `/health` returns `{"ok":true}`. In the same Chrome tab that previously failed, reloaded successfully in Czech, switched to native English, navigated organization → profile → contract, and opened a receipt. Automatic OCR completed with the original PDF visible. No console errors were reported. Restored Czech and left the overview open. Production expense/approval data was not modified by this regression check.
 - Final local check also confirmed saving a fictional organization opens its profile, and the final mobile next-step action appears before the totals. Screenshots are stored locally under `outputs/usability/`.
+
+## Login-free homework demo · 10 November, evening
+
+- Added explicit `DEMO_MODE=true` for Render. Visitors enter directly as Demo, with a shared fictional workspace and no account controls. Czech/English guidance explains how to try the whole workflow.
+- Public demo data lives under `DATA_DIR/public-demo`; existing authenticated accounts, records and originals remain in the original directory. Client identity headers and existing session cookies cannot select the protected workspace in demo mode. Optional paid OpenAI bindings are excluded.
+- Build and TypeScript passed. All 36 unit/regression tests, 14 backend integration scenarios, 6 authenticated Render-host scenarios and 5 new demo scenarios passed (61 checks).
+- The demo scenarios exercise real HTTP against the built Worker: anonymous entry, no-password startup, login redirects, invitation blocking, cross-origin rejection, real PDF upload and expense save, invalid-amount rejection, file/record persistence, and switching back to authenticated mode with the original session and private records intact.
+- Live deployment and Chrome verification are recorded below after release.

@@ -94,7 +94,7 @@ export async function readState(ctx:ServerContext):Promise<AppState>{
     all<Contract>(ctx.db,'contracts',where,params),all<Item>(ctx.db,'items',where,params),all<StoredFile>(ctx.db,'files',where,params),all<AuditEvent>(ctx.db,'audit',where,params),all<Membership>(ctx.db,'memberships',where,params),all<Feedback>(ctx.db,'feedback',where,params),
   ]);
   audit.sort((a,b)=>b.at.localeCompare(a.at));feedback.sort((a,b)=>b.at.localeCompare(a.at));
-  return {user:{userId:ctx.user.userId,email:ctx.user.email,displayName:ctx.user.displayName},membership:ctx.member,organizations,contracts,items,files,audit,members,feedback,capabilities:{extraction:env.OPENAI_API_KEY?'AI + PDF text + OCR v prohlížeči':'PDF text + OCR v prohlížeči',adviser:env.OPENAI_API_KEY?'AI rádce se zdroji':'Průvodce podklady · bez jazykového modelu'}};
+  return {user:{userId:ctx.user.userId,email:ctx.user.email,displayName:ctx.user.displayName},membership:ctx.member,organizations,contracts,items,files,audit,members,feedback,capabilities:{demo:env.DEMO_MODE==='true',extraction:env.OPENAI_API_KEY?'AI + PDF text + OCR v prohlížeči':'PDF text + OCR v prohlížeči',adviser:env.OPENAI_API_KEY?'AI rádce se zdroji':'Průvodce podklady · bez jazykového modelu'}};
 }
 // Compare every item version at submission/approval so a concurrent edit cannot
 // slip between validation and the state transition. D1 batch is transactional.
@@ -108,6 +108,7 @@ async function saveContractState(ctx:ServerContext,c:Contract,previous:Contract,
 
 export async function command(ctx:ServerContext,action:string,raw:unknown):Promise<Record<string,unknown>>{
   const p=record(raw);
+  if(env.DEMO_MODE==='true'&&action==='invite')throw new ApiError(403,'Veřejná ukázka nepoužívá účty ani pozvánky.');
   if(action==='saveOrganization'){
     const source=record(p.organization??p);const key=typeof source.id==='string'?source.id:'';const old=key?await one<Organization>(ctx.db,'organizations',key):null;
     if(old)manager(ctx,old.id);else federation(ctx);
@@ -196,6 +197,7 @@ export async function command(ctx:ServerContext,action:string,raw:unknown):Promi
   throw new ApiError(400,'Neznámá operace. Obnovte aplikaci.');
 }
 export async function acceptInvite(ctx:IdentityContext,token:unknown){
+  if(env.DEMO_MODE==='true')throw new ApiError(403,'Veřejná ukázka nepoužívá účty ani pozvánky.');
   const hash=await digest(new TextEncoder().encode(text(token,'Pozvánka',128,true)));
   const invite=await ctx.db.prepare('SELECT * FROM invitations WHERE token_hash=?').bind(hash).first<{id:string;organization_id:string;email:string;role:'federation'|'org_admin'|'member';expires_at:string;used_by:string|null}>();
   if(!invite||invite.used_by||invite.expires_at<now())throw new ApiError(400,'Pozvánka už není platná. Požádejte o nový odkaz.');if(invite.email!==ctx.user.email.toLowerCase())throw new ApiError(403,`Pozvánka je určena pro ${invite.email}. Přihlaste se tímto účtem.`);if(ctx.member)throw new ApiError(409,'Tento účet už má členství. Změnu organizace musí vyřešit správce.');
