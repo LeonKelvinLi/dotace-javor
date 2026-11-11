@@ -4,6 +4,7 @@ import type { Contract, Item } from '../lib/model';
 
 // A URL keeps native Node TypeScript execution and bundler type checking aligned.
 const { findings, submissionErrors, total } = await import(new URL('../lib/model.ts', import.meta.url).href) as typeof import('../lib/model');
+const { reviewProgress } = await import(new URL('../lib/review.ts', import.meta.url).href) as typeof import('../lib/review');
 
 const contract = (overrides: Partial<Contract> = {}): Contract => ({
   id: 'contract-a', organizationId: 'org-a', number: 'SFJ-2026-1', program: 'Organizace',
@@ -92,4 +93,29 @@ test('unconfirmed cash policy warns at any amount and never invents a 10,000 CZK
   assert.deepEqual(codes(item({ payment: 'bank' })), []);
   assert.deepEqual(codes(item({ payment: 'cash', amount: 600, claimed: 600 }), contract({ cashLimit: 5_000 })), []);
   assert.deepEqual(codes(item({ payment: 'cash', amount: 5_000, claimed: 5_000 }), contract({ cashLimit: 5_000 })), ['cash_limit']);
+});
+
+test('organization checks do not count as federation decisions', () => {
+  const review = reviewProgress([item({orgReview:'checked'}), item({id:'b',orgReview:'commented'})]);
+  assert.equal(review.remaining, 2);
+  assert.equal(review.decided.length, 0);
+  assert.equal(review.ready, false);
+});
+test('information requests block approval while undecided expenses come first', () => {
+  const waiting = item({id:'waiting',sfjDecision:'supplement'});
+  const pending = item({id:'pending'});
+  const review = reviewProgress([waiting, item({id:'accepted',sfjDecision:'accepted'}), pending]);
+  assert.equal(review.remaining, 2);
+  assert.equal(review.next?.id, 'pending');
+  assert.equal(review.ready, false);
+  assert.equal(reviewProgress([waiting, {...pending,sfjDecision:'accepted'}]).next?.id, 'waiting');
+});
+test('final approval requires decisions on active expenses and cannot approve an empty claim', () => {
+  const accepted = item({sfjDecision:'accepted'});
+  const rejected = item({id:'rejected',sfjDecision:'rejected'});
+  const excluded = item({id:'excluded',excluded:true});
+  assert.equal(reviewProgress([accepted,rejected,excluded]).ready, true);
+  assert.equal(reviewProgress([accepted,rejected,excluded]).decided.length, 2);
+  assert.equal(reviewProgress([excluded]).ready, false);
+  assert.equal(reviewProgress([]).ready, false);
 });

@@ -8,8 +8,9 @@ Open https://dotace-javor-99x6.onrender.com/. **No login or password is needed f
 2. Follow the green next-step panel. It opens the next expense needing attention.
 3. Document reading runs automatically. Compare the details with the original, explain any warning, check the confirmation box, then **Uložit doklad / Save expense**.
 4. When all expenses are checked, the next action becomes **Zkontrolovat a odeslat / Review and submit**. Read the declaration before submitting.
-5. As the federation administrator, use **Otevřít další výdaj ke kontrole / Review next expense**. Accept, reject with a reason, or request more information.
-6. Finish the review with a conclusion, then open **Souhrn / Summary** and **Stáhnout PDF / Download PDF**.
+5. Open **Ke schválení / Review & approve** in the sidebar, then **Zkontrolovat výdaje / Review expenses** on a submitted settlement. Two visible steps show expense review and final approval.
+6. Click **Posoudit další výdaj / Review next expense**. Compare the original with the compact expense summary. Choose **Accept expense**, **Reject expense**, or **Ask for information**. Rejection and information requests require a reason. Save with the visible bottom button; the next undecided expense opens automatically.
+7. The final decision opens **Step 2 · Approve settlement**. Enter a short conclusion, check the proposed reduction, then **Approve and close settlement**. The summary opens automatically with **Download PDF**. Outstanding information requests block approval; the page explains how to resolve them. If you are in organization preview, click **Switch to reviewer**.
 
 Use fictional records for practice. Real submissions and approval decisions belong to the authorized organization and federation reviewers.
 

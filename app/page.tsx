@@ -48,6 +48,8 @@ import Extraction from "@/components/dotace-extract";
 import { parsePaymentDate, type ExtractionContext } from "@/lib/extraction";
 import { mergeAutofill, duplicateReceipt, type AutofillState } from "@/lib/autofill";
 import DocumentPreview from "@/components/dotace-document";
+import ReviewExpense from "@/components/dotace-review";
+import { reviewProgress } from "@/lib/review";
 import { LanguageProvider, LanguageSwitch, useLanguage } from "@/components/language";
 import {
   AppState,
@@ -228,6 +230,7 @@ function Workspace() {
     action: string,
     payload: unknown,
     message = "Změna je uložená.",
+    afterLoad?: (fresh: AppState) => void,
   ) => {
     setBusy(true);
     setError("");
@@ -237,7 +240,8 @@ function Workspace() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action, payload }),
       });
-      await load();
+      const fresh = await load();
+      afterLoad?.(fresh);
       if (message) setToast(message);
       return result;
     } catch (e) {
@@ -313,7 +317,7 @@ function Workspace() {
     if (itemFilter === "warnings")
       return contract && findings(i, contract).length > 0;
     if (itemFilter === "unchecked")
-      return i.orgReview === "unchecked" && !i.excluded;
+      return !i.excluded && (contract?.status === 'submitted' && federation && !preview ? i.sfjDecision === 'pending' : i.orgReview === 'unchecked');
     if (itemFilter === "supplement") return i.sfjDecision === "supplement";
     if (itemFilter === "sample") return selected.includes(i.id);
     return true;
@@ -333,6 +337,11 @@ function Workspace() {
   const editable =
     contract && (contract.status === "draft" || contract.status === "changes");
   const reviewing = federation && !preview && contract?.status === "submitted";
+  const review = reviewProgress(contractItems);
+  const reviewQueue = state?.contracts.filter(c => c.status === 'submitted') || [];
+  const openReviewQueue = () => {
+    goHome('contracts'); setStatusFilter('submitted'); setProgram(''); setYear(''); setOrgFilter(''); setPreview(false);
+  };
   const canSubmit =
     (federation || state?.membership.role === "org_admin") && editable;
   const exportCsv = () => {
@@ -497,13 +506,16 @@ function Workspace() {
         <div className="workspace-label">{t("Evidence")}</div>
         <nav aria-label={t("Hlavní navigace")}>
           <button
-            className={`nav-item ${view === "contracts" ? "active" : ""}`}
-            onClick={() => goHome("contracts")}
+            className={`nav-item ${view === "contracts" && statusFilter !== 'submitted' ? "active" : ""}`}
+            onClick={() => { goHome("contracts"); setStatusFilter(''); }}
           >
             <LayoutDashboard size={18} />
             <span>{t("Smlouvy")}</span>
             <span className="nav-count">{state.contracts.length}</span>
           </button>
+          {federation && <button className={`nav-item ${view === 'contracts' && statusFilter === 'submitted' ? 'active' : ''}`} onClick={openReviewQueue}>
+            <ShieldCheck size={18}/><span>{t('Ke schválení')}</span><span className="nav-count">{reviewQueue.length}</span>
+          </button>}
           <button
             className={`nav-item ${view === "organizations" ? "active" : ""}`}
             onClick={() => goHome("organizations")}
@@ -688,6 +700,7 @@ function Workspace() {
                   )}
                 </div>
               </div>
+              {contract.status === 'submitted' && federation && preview && <div className="notice review-mode-notice"><div><strong>{t('Nyní vidíte pohled organizace.')}</strong><p>{t('Pro kontrolu a schválení přepněte na kontrolora.')}</p></div><button className="button primary" onClick={() => setPreview(false)}>{t('Přejít ke kontrole')}</button></div>}
               <NextStep
                 contract={contract}
                 items={contractItems}
@@ -712,9 +725,9 @@ function Workspace() {
                   icon={<FolderOpen size={18} />}
                 />
                 <Metric
-                  label="Ke kontrole organizace"
+                  label={contract.status === 'submitted' ? 'Zbývá rozhodnout' : 'Ke kontrole organizace'}
                   value={String(
-                    contractItems.filter(
+                    contract.status === 'submitted' ? review.remaining : contractItems.filter(
                       (i) => !i.excluded && i.orgReview === "unchecked",
                     ).length,
                   )}
@@ -765,8 +778,8 @@ function Workspace() {
                 <section className="panel ledger no-print">
                   <div className="panel-header">
                     <div>
-                      <h2>{t("Doklady")}</h2>
-                      <p>{t("Vyberte doklad k úpravě nebo přidejte nový.")}</p>
+                      <h2>{t(reviewing ? 'Výdaje ke kontrole' : "Doklady")}</h2>
+                      <p>{t(reviewing ? 'U každého výdaje otevřete originál a uložte rozhodnutí. Schválení celého vyúčtování je samostatný poslední krok.' : "Vyberte doklad k úpravě nebo přidejte nový.")}</p>
                     </div>
                     <div className="row-actions">
                       <button className="button secondary" onClick={exportCsv}>
@@ -804,7 +817,7 @@ function Workspace() {
                       onChange={(e) => setItemFilter(e.target.value)}
                     >
                       <option value="all">{t("Všechny doklady")}</option>
-                      <option value="unchecked">{t("Nezkontrolované")}</option>
+                      <option value="unchecked">{t(reviewing ? 'Bez rozhodnutí' : "Nezkontrolované")}</option>
                       <option value="warnings">{t("S upozorněním")}</option>
                       <option value="comments">{t("S komentářem")}</option>
                       <option value="missing">{t("Bez přílohy")}</option>
@@ -990,11 +1003,11 @@ function Workspace() {
                             </td>
                             <td>
                               <button
-                                className="icon-button"
-                                aria-label={t(`Otevřít doklad ${item.number}`)}
+                                className={reviewing && !item.excluded ? 'button secondary review-row-action' : 'icon-button'}
+                                aria-label={t(`${reviewing && !item.excluded ? 'Posoudit výdaj' : 'Otevřít doklad'} ${item.number}`)}
                                 onClick={() => setModal({ type: "item", item })}
                               >
-                                <ChevronRight size={17} />
+                                {reviewing && !item.excluded && t(['accepted','rejected'].includes(item.sfjDecision) ? 'Upravit rozhodnutí' : 'Posoudit výdaj')}<ChevronRight size={17} />
                               </button>
                             </td>
                           </tr>
@@ -1068,11 +1081,11 @@ function Workspace() {
             <>
               <div className="page-heading">
                 <div>
-                  <h1>{t("Smlouvy")}</h1>
-                  <p>{t("Vyberte smlouvu a pokračujte v přípravě nebo kontrole výdajů.")}</p>
+                  <h1>{t(statusFilter === 'submitted' ? 'Vyúčtování ke schválení' : "Smlouvy")}</h1>
+                  <p>{t(statusFilter === 'submitted' ? '1. Rozhodněte o každém výdaji. 2. Schvalte celé vyúčtování. Začněte tlačítkem Zkontrolovat výdaje.' : "Vyberte smlouvu a pokračujte v přípravě nebo kontrole výdajů.")}</p>
                 </div>
                 <div className="heading-actions">
-                  {federation && !preview && <button className="button primary" disabled={!state.organizations.length} onClick={()=>setModal({type:"contract",organizationId:state.organizations.length===1?state.organizations[0].id:""})}><Plus size={16}/><span>{t("Nová smlouva")}</span></button>}
+                  {federation && !preview && statusFilter !== 'submitted' && <button className="button primary" disabled={!state.organizations.length} onClick={()=>setModal({type:"contract",organizationId:state.organizations.length===1?state.organizations[0].id:""})}><Plus size={16}/><span>{t("Nová smlouva")}</span></button>}
                   <span className="today-label">
                     {t(new Intl.DateTimeFormat("cs-CZ", {
                       day: "numeric",
@@ -1083,7 +1096,7 @@ function Workspace() {
 
                 </div>
               </div>
-              <section className="start-guide no-print" aria-label={t("Začínáme")}>
+              {statusFilter !== 'submitted' && <section className="start-guide no-print" aria-label={t("Začínáme")}>
                 <div>
                   <h2>{t(demo ? "Vyzkoušejte vyúčtování dotace" : federation ? "Spravujete dotace za federaci" : "Připravte vyúčtování své organizace")}</h2>
                   <p>{t(demo ? "Otevřete ukázkové vyúčtování, nahrajte testovací fakturu a zkontrolujte doplněné údaje. Pak si vyzkoušejte odeslání, kontrolu a stažení souhrnu. Celý postup zvládnete sami." : federation ? "Založte organizaci, přidejte její smlouvu a pozvěte správce klubu. Klub nahraje výdaje a odešle je vám ke kontrole." : "Otevřete svou smlouvu, nahrajte faktury nebo účtenky, zkontrolujte doplněné údaje a odešlete vyúčtování federaci.")}</p>
@@ -1091,10 +1104,11 @@ function Workspace() {
                 </div>
                 <div className="guide-actions">
                   {state.contracts.some(c => c.id === 'contract-haj') && <button className="button primary" onClick={() => openContract('contract-haj')}>{t("Vyzkoušet ukázkové vyúčtování")}<ArrowRight size={16} /></button>}
+                  {federation && <button className="button primary" onClick={openReviewQueue}><ShieldCheck size={16}/>{t('Zkontrolovat odeslaná vyúčtování')} ({reviewQueue.length})</button>}
                   {federation && <button className="button secondary" onClick={() => { goHome('organizations'); setModal({type:'organization'}); }}>{t("Založit vlastní organizaci")}</button>}
                 </div>
-              </section>
-              <div className="overview-metrics">
+              </section>}
+              {statusFilter !== 'submitted' && <div className="overview-metrics">
                 <Metric
                   label="Přiděleno celkem"
                   value={money(
@@ -1128,7 +1142,7 @@ function Workspace() {
                   active={statusFilter==='approved'}
                   icon={<ShieldCheck size={19} />}
                 />
-              </div>
+              </div>}
               <section className="panel contracts-panel">
                 <div className="contract-status-filters" aria-label={t("Stav vyúčtování")}>
                   {[["","Všechny"],["open","Rozpracované"],["submitted","Ke kontrole"],["approved","Schválené"]].map(([value,label])=><button key={value} type="button" aria-pressed={statusFilter===value} onClick={()=>setStatusFilter(value)}><span>{t(label)}</span><span translate="no">{state.contracts.filter(c=>!value || (value==='open'?['draft','changes'].includes(c.status):c.status===value)).length}</span></button>)}
@@ -1238,8 +1252,8 @@ function Workspace() {
                             <td>
                               <button
                                 className="text-link contract-action"
-                                aria-label={t(`Otevřít smlouvu ${c.number}`)}
-                                onClick={() => openContract(c.id)}
+                                aria-label={t(`${c.status === 'submitted' ? 'Zkontrolovat výdaje' : 'Otevřít smlouvu'} ${c.number}`)}
+                                onClick={() => { openContract(c.id); if (c.status === 'submitted' && federation) setPreview(false); }}
                               >
                                 {t(c.status === 'approved' ? 'Zobrazit výsledek' : c.status === 'submitted' ? 'Zkontrolovat výdaje' : 'Pokračovat')}
                               </button>
@@ -1503,7 +1517,7 @@ function Workspace() {
                   : modal.type === "submit"
                     ? "Odeslat vyúčtování"
                     : modal.type === "approve"
-                      ? "Uzavřít kontrolu SFJ"
+                      ? "Krok 2 · Schválit vyúčtování"
                       : modal.type === "return"
                         ? "Vrátit vyúčtování"
                         : modal.type === "invite"
@@ -1542,7 +1556,18 @@ function Workspace() {
               }
             />
           )}
-          {modal.type === "item" && contract && (
+          {modal.type === 'item' && contract && reviewing && modal.item && !modal.item.excluded && <ReviewExpense
+            key={modal.item.id} item={modal.item} contract={contract} items={contractItems} files={state.files} busy={busy}
+            onDecision={async (decision, reason) => {
+              await mutate('reviewItem', {id:modal.item!.id, version:modal.item!.version, decision, reason}, 'Rozhodnutí je uložené.', fresh => {
+                const progress = reviewProgress(fresh.items.filter(item => item.contractId === contract.id));
+                if (progress.pending.length) setModal({type:'item', item:progress.pending[0]});
+                else if (progress.ready) setModal({type:'approve'});
+                else setModal(null);
+              });
+            }}
+          />}
+          {modal.type === "item" && contract && !(reviewing && modal.item && !modal.item.excluded) && (
             <ItemForm
               key={modal.item?.id || "new"}
               item={modal.item || blankItem(contract)}
@@ -1585,7 +1610,7 @@ function Workspace() {
                     declaration: true,
                   },
                   "Vyúčtování bylo odeslané SFJ.",
-                ).then(() => setModal(null))
+                ).then(() => { setModal(null); setTab('items'); if (demo) setPreview(false); })
               }
             />
           )}
@@ -1604,7 +1629,7 @@ function Workspace() {
                     reduction,
                   },
                   "Kontrola byla uzavřena.",
-                ).then(() => setModal(null))
+                ).then(() => { setModal(null); setTab('summary'); })
               }
             />
           )}
@@ -1682,6 +1707,20 @@ function NextStep({ contract, items, canReview, canSubmit, onAdd, onOpen, onSubm
   const active = items.filter(item => !item.excluded);
   const unfinished = active.find(item => submissionErrors(contract, [item]).length > 0);
   const pending = active.find(item => item.sfjDecision === 'pending' || item.sfjDecision === 'supplement');
+  const progress = reviewProgress(items);
+  if (canReview && contract.status === 'submitted') return <section className="review-workflow no-print" aria-label={t('Postup schválení')}>
+    <div className={`review-stage ${progress.ready ? 'complete' : 'current'}`}>
+      <span className="review-stage-number">{progress.ready ? <Check size={18}/> : '1'}</span>
+      <div><h2>{t('Rozhodněte o výdajích')}</h2><p><strong>{progress.decided.length} / {progress.active.length}</strong> {t('výdajů posouzeno')}</p>
+        <p>{t(progress.waiting.length ? 'Vyžádaná vysvětlení brání schválení. Otevřete výdaj nebo vraťte vyúčtování k opravě.' : progress.ready ? 'Všechna rozhodnutí jsou uložená. Pokračujte ke schválení.' : 'Porovnejte každý výdaj s originálem a přijměte jej, zamítněte nebo vyžádejte vysvětlení.')}</p>
+      </div>
+      {progress.next && <button className="button primary" onClick={() => onOpen(progress.next!)}>{t(progress.pending.length ? 'Posoudit další výdaj' : 'Otevřít nevyřešený výdaj')}<ArrowRight size={16}/></button>}
+    </div>
+    <div className={`review-stage ${progress.ready ? 'current' : ''}`}>
+      <span className="review-stage-number">2</span><div><h2>{t('Schvalte celé vyúčtování')}</h2><p>{t(progress.ready ? 'Doplňte závěr a potvrďte schválení. Poté stáhnete výsledné PDF.' : 'Tento krok se zpřístupní po rozhodnutí o všech výdajích.')}</p></div>
+      <button className={`button ${progress.ready ? 'primary' : 'secondary'}`} disabled={!progress.ready} onClick={onApprove}>{t('Schválit vyúčtování')}<ArrowRight size={16}/></button>
+    </div>
+  </section>;
   let title = 'Přidejte první výdaj';
   let detail = 'Nahrajte fakturu nebo účtenku. Údaje se doplní automaticky a potom je zkontrolujete.';
   let label = 'Nahrát první doklad';
@@ -1808,6 +1847,9 @@ function ModalShell({
       before?.focus();
     };
   }, []);
+  useEffect(() => {
+    ref.current?.querySelector<HTMLElement>("#modal-title")?.focus();
+  }, [title]);
   return (
     <div
       className="modal-backdrop no-print"
@@ -1823,7 +1865,7 @@ function ModalShell({
         aria-labelledby="modal-title"
       >
         <div className="modal-header">
-          <h2 id="modal-title">{t(title)}</h2>
+          <h2 id="modal-title" tabIndex={-1}>{t(title)}</h2>
           <button
             className="icon-button"
             aria-label={t("Zavřít dialog")}
@@ -3251,7 +3293,8 @@ function ApprovalForm({
   onSubmit: (s: string, n: number) => Promise<unknown>;
 }) {
   const { t } = useLanguage();
-  const rejected = total(items.filter((i) => i.sfjDecision === "rejected"));
+  const progress = reviewProgress(items);
+  const rejected = total(items.filter((i) => !i.excluded && i.sfjDecision === "rejected"));
   const pending = items.filter(
     (i) =>
       !i.excluded &&
@@ -3269,6 +3312,8 @@ function ApprovalForm({
       }}
     >
       <FormError error={error} />
+      <div className="approval-intro"><div className="review-kicker">{t('KROK 2 ZE 2 · SCHVÁLENÍ')}</div><h3>{t('Zbývá potvrdit celé vyúčtování')}</h3><p>{t('Rozhodnutí o výdajích jsou uložená. Schválením uzamknete vyúčtování a otevřete výsledný souhrn.')}</p></div>
+      <div className="approval-counts"><span><strong>{progress.active.filter(item => item.sfjDecision === 'accepted').length}</strong> {t('přijatých výdajů')}</span><span><strong>{progress.active.filter(item => item.sfjDecision === 'rejected').length}</strong> {t('zamítnutých výdajů')}</span></div>
       {pending.length > 0 && (
         <div className="notice warning">
           <TriangleAlert size={18} />
@@ -3294,7 +3339,7 @@ function ApprovalForm({
           onChange={(e) => setReduction(Number(e.target.value))}
         />
       </Field>
-      <Field label="Závěr kontroly">
+      <Field label="Závěr kontroly" hint="Napište krátký závěr. Potom můžete schválit vyúčtování.">
         <textarea
           required
           rows={5}
@@ -3303,10 +3348,11 @@ function ApprovalForm({
           placeholder={t("Uveďte závěr formální kontroly a případné odůvodnění krácení.")}
         />
       </Field>
+      <p className="approval-next">{t('Po schválení: Souhrn → Stáhnout PDF. Schválení v této aplikaci neprovádí platbu.')}</p>
       <div className="form-footer">
         <button
           className="button primary"
-          disabled={busy || pending.length > 0}
+          disabled={busy || !progress.ready || !conclusion.trim()}
         >
           <ShieldCheck size={16} />{t("Schválit a uzavřít vyúčtování")}</button>
       </div>

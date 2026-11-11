@@ -149,3 +149,13 @@ The accounting workspace was redesigned and deployed as `d14e1ec29c964ddb5ea1858
 - Live release: `dep-dbpsqcijnfac73ec1ub0` reached live at 02:06:29 UTC on 11 November (10 November Pacific), serving runtime commit `75d0e1ca75f2a37ee8a8a1d9add38095595e0c21`. The disk restart briefly returned 502 during rollout; verification below was performed after the service became live.
 - Fresh HTTP requests with no cookie returned 200 for app state and original PDF bytes. `/login` redirected to `/`. Demo state contained the four fictional seed contracts and excluded the prior authenticated user's added contract.
 - Live Chrome opened the demo directly, navigated organization → profile → contract, and automatically read the sample receipt with its original visible. Login/logout/invitation controls were absent, the shared-demo notice and English getting-started copy were present, and browser error logs were empty. Closed the unchanged receipt and left the English overview open. No expense or approval records were changed in this live browser check. Local screenshot: `outputs/demo-access/no-login-live.png` (ignored).
+
+
+## Review clarity and cold walkthrough · 10 November, evening
+
+- Cold Chrome audit found misleading “Expenses to check 0” on a settlement with two pending federation decisions. The decision form appeared below a long disabled expense form and was not visible without scrolling.
+- Added a Review & approve navigation entry and review queue, two visible numbered review/approval steps, accurate federation progress, labelled row actions, and a Switch to reviewer recovery action for organization preview.
+- Added a dedicated review screen: original beside a compact summary, organization comments and warnings, explicit Accept / Reject / Ask for information choices, and a persistent save action. No decision is preselected on a pending expense. Saving opens the next pending expense; after all final decisions, the approval form opens. Approval opens the summary automatically.
+- Local visible Chrome: Czech default and native English, queue navigation, correct 0/2 progress, acceptance and automatic next expense, rejection requiring a reason, automatic final-approval form with a 6,500 CZK reduction, conclusion required, approval and automatic summary. These decisions used isolated fictional data only.
+- Also verified organization-preview recovery, 390×844 decision controls and persistent save button, information-request reason requirement, and approval blocked by the outstanding request. No browser errors were captured.
+- Automated validation: 39 unit/regression checks, 14 backend integration scenarios, 6 authenticated Render-host scenarios and 5 public-demo scenarios (64 total). Type checking and production build passed.

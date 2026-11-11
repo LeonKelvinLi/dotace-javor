@@ -354,3 +354,68 @@
   font-size: 13px;
   line-height: 1.5;
 }
+
+@media screen {
+  .review-workflow {margin:0 0 24px;border:1px solid #cad7cf;border-radius:5px;overflow:hidden;background:#fff;}
+  .review-stage {display:flex;align-items:center;gap:16px;padding:20px 22px;}
+  .review-stage + .review-stage {border-top:1px solid #dbe2dc;}
+  .review-stage.current {background:#edf4ef;}
+  .review-stage-number {width:30px;height:30px;flex:0 0 30px;border:1px solid #a9bdb1;border-radius:50%;display:grid;place-items:center;font-weight:700;color:#315746;}
+  .review-stage.complete .review-stage-number {background:#315746;color:white;}
+  .review-stage>div {flex:1;min-width:0;}
+  .review-stage h2 {font-size:17px;margin:0 0 5px;}
+  .review-stage p {font-size:13px;line-height:1.5;margin:3px 0;color:#53635a;}
+  .review-stage .button {flex:none;}
+  .review-stage .button:disabled {opacity:.6;cursor:not-allowed;}
+  .review-row-action {white-space:nowrap;font-size:12px;padding:9px 12px;}
+  .review-mode-notice {align-items:center;justify-content:space-between;}
+  .review-fields h3 {font-size:22px;line-height:1.2;margin:5px 0 8px;color:#273b35;}
+  .review-kicker {font-size:11px;letter-spacing:.06em;font-weight:700;color:#537160;}
+  .review-instruction {font-size:13px;line-height:1.5;color:#5e6d65;margin:0 0 18px;}
+  .review-original-shortcut {display:none;}
+  .review-amount {display:flex;justify-content:space-between;gap:18px;padding:14px 0 12px;border-top:1px solid #dce3dd;}
+  .review-amount>div {display:flex;flex-direction:column;gap:4px;}
+  .review-amount>div:last-child {text-align:right;flex-shrink:0;}
+  .review-amount strong {font-size:17px;color:#263d33;}
+  .review-amount span,.review-amount small {font-size:12px;color:#66756c;}
+  .review-purpose {font-size:14px;margin:0 0 14px;line-height:1.5;}
+  .review-facts {display:grid;grid-template-columns:1fr 1fr;gap:12px 20px;margin:0 0 18px;}
+  .review-facts dt {font-size:11px;color:#63736a;margin-bottom:3px;}
+  .review-facts dd {font-size:13px;color:#293f35;margin:0;}
+  .review-comment {border-left:3px solid #9db8a8;padding:9px 12px;background:#f5f7f4;font-size:12px;margin:0 0 14px;}
+  .review-comment p {margin:5px 0 0;line-height:1.5;}
+  .review-findings {padding:9px 12px;background:#fff5e7;color:#7b571b;margin-bottom:14px;border-radius:4px;}
+  .review-findings p {display:flex;align-items:flex-start;gap:8px;font-size:12px;line-height:1.5;margin:5px 0;}
+  .review-findings svg {flex:none;margin-top:2px;}
+  .decision-options {border:0;margin:0 0 16px;padding:0;display:grid;gap:7px;}
+  .decision-options legend {font-size:14px;font-weight:700;padding:0 0 10px;color:#263d33;}
+  .decision-option {display:flex;align-items:center;gap:10px;border:1px solid #cdd7d0;border-radius:4px;padding:10px 12px;cursor:pointer;background:#fff;}
+  .decision-option.selected {border-color:#3d7459;background:#edf5ef;box-shadow:inset 3px 0 #3d7459;}
+  .decision-option input {width:16px;height:16px;accent-color:#315d45;flex:none;}
+  .decision-option strong {font-size:13px;display:block;}
+  .decision-option small {font-size:11px;display:block;color:#5e7065;margin-top:2px;}
+  .review-more {font-size:12px;color:#50665a;margin-top:15px;}
+  .review-more summary {cursor:pointer;margin-bottom:10px;}
+  .review-savebar {background:#f0f5f0;}
+  .review-savebar .button {white-space:nowrap;}
+  .approval-intro h3 {font-size:20px;margin:8px 0;}
+  .approval-intro p,.approval-next {font-size:13px;line-height:1.5;color:#53685b;}
+  .approval-counts {display:flex;gap:24px;padding:14px 0;margin-bottom:12px;border-bottom:1px solid #d8e2da;font-size:13px;}
+  @media(max-width:760px) {
+    .review-stage {flex-wrap:wrap;padding:16px;gap:12px;align-items:flex-start;}
+    .review-stage>div {flex-basis:calc(100% - 44px);}
+    .review-stage .button {width:100%;}
+    .review-mode-notice {flex-direction:column;align-items:stretch;}
+    .review-editor .item-entry {display:contents;}
+    .review-editor .review-fields {order:0;}
+    .review-editor .item-document {order:1;}
+    .receipt-modal>.review-editor {padding-bottom:102px;}
+    .review-savebar {flex-wrap:wrap;gap:8px;padding:10px 14px;}
+    .review-savebar>div {width:100%;display:flex;justify-content:space-between;gap:8px;}
+    .review-savebar small {display:block;margin:0;max-width:60%;text-align:right;font-size:10px;color:#52665b;}
+    .review-savebar .button {width:100%;min-height:40px;}
+    .review-amount strong {font-size:15px;}
+    .review-fields h3 {font-size:20px;}
+    .review-original-shortcut {display:flex;align-items:center;gap:6px;font-size:13px;margin:-5px 0 16px;}
+  }
+}
