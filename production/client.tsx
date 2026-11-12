@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import App from "../app/page";
 import "../app/globals.css";
 import "../app/workspace.css";
+import "../app/dashboard.css";
 class RecoveryBoundary extends React.Component<
   React.PropsWithChildren,
   { failed: boolean }

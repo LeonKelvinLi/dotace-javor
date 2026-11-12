@@ -45,6 +45,7 @@ import { parsePaymentDate, type ExtractionContext } from "@/lib/extraction";
 import { mergeAutofill, duplicateReceipt, type AutofillState } from "@/lib/autofill";
 import DocumentPreview from "@/components/dotace-document";
 import ReviewExpense from "@/components/dotace-review";
+import Dashboard from "@/components/dotace-dashboard";
 import { reviewProgress } from "@/lib/review";
 import { LanguageProvider, LanguageSwitch, useLanguage } from "@/components/language";
 import {
@@ -301,7 +302,6 @@ function Workspace() {
   const demo = Boolean(state?.capabilities.demo);
   const orgMode = !federation || preview;
   const contract = state?.contracts.find((c) => c.id === contractId);
-  const starterContract = state?.contracts.find((c) => ['draft', 'changes'].includes(c.status)) || state?.contracts[0];
   const organization = state?.organizations.find(
     (o) => o.id === (contract?.organizationId || organizationId),
   );
@@ -514,7 +514,7 @@ function Workspace() {
             onClick={() => { goHome("contracts"); setStatusFilter(''); }}
           >
             <LayoutDashboard size={18} />
-            <span>{t("Smlouvy")}</span>
+            <span>{t("Přehled")}</span>
             <span className="nav-count">{state.contracts.length}</span>
           </button>
           {federation && <button className={`nav-item ${view === 'contracts' && statusFilter === 'submitted' ? 'active' : ''}`} onClick={openReviewQueue}>
@@ -603,7 +603,7 @@ function Workspace() {
           </div>
         </header>
         <main className="main-content" key={contractId ? `contract-${contractId}` : `${view}-${organizationId}`}>
-          {demo && <div className="demo-notice no-print"><span>{t(federation ? "Federace · Zkontrolujte odeslané výdaje v sekci Ke schválení." : "Organizace FK Háj · Přidejte doklady ke své smlouvě a odešlete vyúčtování federaci.")} {t("Zkušební účty · používejte pouze fiktivní doklady.")}</span><a href="/signout-with-chatgpt">{t("Odhlásit a změnit účet")}</a></div>}
+          {demo && <div className="demo-notice no-print"><span><span className="demo-dot"/>{t("Zkušební prostor · pouze fiktivní údaje")}</span><a href="/signout-with-chatgpt">{t("Změnit zkušební účet")}<ArrowUpRight size={13}/></a></div>}
           {error && (
             <div className="notice error no-print" role="alert">
               <TriangleAlert size={18} />
@@ -1087,8 +1087,8 @@ function Workspace() {
             <>
               <div className="page-heading">
                 <div>
-                  <h1>{t(statusFilter === 'submitted' ? federation ? 'Vyúčtování ke schválení' : 'Odesláno federaci' : "Smlouvy")}</h1>
-                  <p>{t(statusFilter === 'submitted' ? federation ? '1. Rozhodněte o každém výdaji. 2. Schvalte celé vyúčtování. Začněte tlačítkem Zkontrolovat výdaje.' : 'Vyúčtování je u federace. Zde sledujte výsledek kontroly a případné žádosti o doplnění.' : "Vyberte smlouvu a pokračujte v přípravě nebo kontrole výdajů.")}</p>
+                  <span className="dashboard-eyebrow">{t(federation ? 'FEDERAČNÍ PRACOVIŠTĚ' : 'PRACOVIŠTĚ ORGANIZACE')}</span><h1>{t(statusFilter === 'submitted' ? federation ? 'Vyúčtování ke schválení' : 'Odesláno federaci' : statusFilter === 'approved' ? 'Schválená vyúčtování' : statusFilter === 'open' ? 'Rozpracovaná vyúčtování' : federation ? 'Přehled dotací' : 'Vaše vyúčtování')}</h1>
+                  <p>{t(statusFilter === 'submitted' ? federation ? '1. Rozhodněte o každém výdaji. 2. Schvalte celé vyúčtování. Začněte tlačítkem Zkontrolovat výdaje.' : 'Vyúčtování je u federace. Zde sledujte výsledek kontroly a případné žádosti o doplnění.' : federation ? "Mějte přehled o financování a o tom, co právě vyžaduje vaši pozornost." : "Všechny vaše smlouvy, doklady a další kroky přehledně na jednom místě.")}</p>
                 </div>
                 <div className="heading-actions">
                   {federation && !preview && statusFilter !== 'submitted' && <button className="button primary" disabled={!state.organizations.length} onClick={()=>setModal({type:"contract",organizationId:state.organizations.length===1?state.organizations[0].id:""})}><Plus size={16}/><span>{t("Nová smlouva")}</span></button>}
@@ -1102,54 +1102,8 @@ function Workspace() {
 
                 </div>
               </div>
-              {statusFilter !== 'submitted' && <section className="start-guide no-print" aria-label={t("Začínáme")}>
-                <div>
-                  <h2>{t(federation ? "Spravujete dotace za federaci" : "Připravte vyúčtování své organizace")}</h2>
-                  <p>{t(federation ? demo ? "Otevřete odeslané vyúčtování, posuďte každý výdaj a potom schvalte celé vyúčtování. Výdaje připravuje účet organizace." : "Založte organizaci, přidejte její smlouvu a pozvěte správce klubu. Klub nahraje výdaje a odešle je vám ke kontrole." : "Otevřete svou smlouvu, nahrajte faktury nebo účtenky, zkontrolujte doplněné údaje a odešlete vyúčtování federaci.")}</p>
-                  {demo&&<p className="guide-sample">{t("Ukázkové organizace a doklady slouží k vyzkoušení celého postupu.")}</p>}
-                </div>
-                <div className="guide-actions">
-                  {!federation && starterContract && <button className="button primary" onClick={() => openContract(starterContract.id)}>{t("Otevřít mé vyúčtování")}<ArrowRight size={16} /></button>}
-                  {federation && reviewQueue.length>0 && <button className="button primary" onClick={openReviewQueue}><ShieldCheck size={16}/>{t('Zkontrolovat odeslaná vyúčtování')} ({reviewQueue.length})</button>}
-                  {federation && <button className={!state.organizations.length?"button primary":"button secondary"} onClick={() => { goHome('organizations'); setModal({type:'organization'}); }}>{t("Založit vlastní organizaci")}</button>}
-                </div>
-              </section>}
-              {statusFilter !== 'submitted' && <div className="overview-metrics">
-                <Metric
-                  label="Přiděleno celkem"
-                  value={money(
-                    state.contracts.reduce(
-                      (s, c) => s + Math.round(c.amount * 100),
-                      0,
-                    ) / 100,
-                  )}
-                  hint={`${state.contracts.length} smluv v evidenci`}
-                  icon={<FileText size={19} />}
-                />
-                <Metric
-                  label="Čeká na kontrolu SFJ"
-                  value={String(
-                    state.contracts.filter((c) => c.status === "submitted")
-                      .length,
-                  )}
-                  hint={federation ? "Zobrazit ke kontrole →" : "Zobrazit odeslaná →"}
-                  onClick={()=>setStatusFilter(statusFilter==='submitted'?'':'submitted')}
-                  active={statusFilter==='submitted'}
-                  icon={<Clock3 size={19} />}
-                />
-                <Metric
-                  label="Schválená vyúčtování"
-                  value={String(
-                    state.contracts.filter((c) => c.status === "approved")
-                      .length,
-                  )}
-                  hint="Zobrazit schválená →"
-                  onClick={()=>setStatusFilter(statusFilter==='approved'?'':'approved')}
-                  active={statusFilter==='approved'}
-                  icon={<ShieldCheck size={19} />}
-                />
-              </div>}
-              <section className="panel contracts-panel">
+              {!statusFilter && <Dashboard state={state} federation={!!federation} onOpen={(id) => { setPreview(false); openContract(id); }} onStatus={(value) => { setStatusFilter(value); setQuery(''); setProgram(''); setYear(''); setOrgFilter(''); }} onNewOrganization={() => { goHome('organizations'); setModal({type:'organization'}); }}/>}
+              <section className="panel contracts-panel" id="contract-register"><div className="register-heading"><div><FolderOpen size={18}/><h2>{t("Smlouvy a vyúčtování")}</h2><span>{filteredContracts.length}</span></div><p>{t("Doklady, termíny a rozhodnutí na jednom místě.")}</p></div>
                 <div className="contract-status-filters" aria-label={t("Stav vyúčtování")}>
                   {[["","Všechny"],["open","Rozpracované"],["submitted","Ke kontrole"],["approved","Schválené"]].map(([value,label])=><button key={value} type="button" aria-pressed={statusFilter===value} onClick={()=>setStatusFilter(value)}><span>{t(label)}</span><span translate="no">{state.contracts.filter(c=>!value || (value==='open'?['draft','changes'].includes(c.status):c.status===value)).length}</span></button>)}
                 </div>
@@ -1422,7 +1376,7 @@ function Workspace() {
                   <div>
                     <div className="eyebrow">{t("SPOLUPRÁCE")}</div>
                     <h1>{t("Organizace a lidé")}</h1>
-                    <p>{t(demo ? "Otevřete profil organizace a přidejte její smlouvu. V ukázce můžete vyzkoušet celý postup sami." : "Každá organizace má vlastní smlouvy a členy. Otevřete profil pro přidání smlouvy nebo pozvání správce klubu.")}</p>
+                    <p>{t(!federation ? "Profil vaší organizace, její smlouvy a přístupy členů." : demo ? "Otevřete profil organizace a přidejte její smlouvu. V ukázce můžete vyzkoušet celý postup sami." : "Každá organizace má vlastní smlouvy a členy. Otevřete profil pro přidání smlouvy nebo pozvání správce klubu.")}</p>
                   </div>
                   {federation && !preview && (
                     <div className="heading-actions">
