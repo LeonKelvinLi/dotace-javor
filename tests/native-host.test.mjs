@@ -100,6 +100,10 @@ try {
   const initial = await state(owner);
   assert.equal(initial.data.membership.role, "federation");
   assert.equal(initial.data.organizations.length, 3);
+  await command(owner, "completeOnboarding", {role:"member"});
+  const introduced=await state(owner);
+  assert.ok(introduced.data.membership.onboardingCompletedAt);
+  assert.equal(introduced.data.membership.role,"federation");
   const sourceContract = initial.data.contracts.find(
     (c) => c.status === "draft",
   );
@@ -159,6 +163,9 @@ try {
     role: "member",
   });
   const token = new URL(invite.inviteUrl, origin).searchParams.get("invite");
+  const invitationPage=await (await fetch(origin+"/login?invite="+token)).text();
+  assert.ok(invitationPage.includes('value="member@fixture.example"'));
+  assert.ok(invitationPage.includes('/login?next='+encodeURIComponent('/?invite='+token)));
   const signup = await fetch(origin + "/auth/register", {
     method: "POST",
     headers: { Origin: origin },

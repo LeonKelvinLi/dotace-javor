@@ -110,6 +110,14 @@ async function saveContractState(ctx:ServerContext,c:Contract,previous:Contract,
 export async function command(ctx:ServerContext,action:string,raw:unknown):Promise<Record<string,unknown>>{
   const p=record(raw);
   if(env.DEMO_MODE==='true'&&action==='invite')throw new ApiError(403,'Ukázka používá dva zkušební účty. Pozvánky jsou dostupné v klientské verzi.');
+  if(action==='completeOnboarding'){
+    // Only acknowledge the caller's introduction; never accept role or account fields.
+    const current=await one<Membership>(ctx.db,'memberships',ctx.member.id);
+    if(!current||current.disabled)throw new ApiError(403,'Přístup není dostupný.');
+    const completedAt=current.onboardingCompletedAt||now();
+    await ctx.db.prepare("UPDATE memberships SET data=json_set(data,'$.onboardingCompletedAt',?) WHERE id=? AND user_id=?").bind(completedAt,ctx.member.id,ctx.user.userId).run();
+    return {completedAt};
+  }
   if(action==='saveOrganization'){
     const source=record(p.organization??p);const key=typeof source.id==='string'?source.id:'';const old=key?await one<Organization>(ctx.db,'organizations',key):null;
     if(old)manager(ctx,old.id);else federation(ctx);

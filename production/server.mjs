@@ -21,6 +21,9 @@ import {
   seedDemo,
 } from "../dist/api.mjs";
 
+if (process.env.APP_ENV === 'prelaunch') {
+  await import('./prelaunch.mjs');
+} else {
 const production = process.env.APP_ENV === "production";
 const demo = process.env.DEMO_MODE === "true";
 if (process.env.RENDER && !demo && !production)
@@ -502,3 +505,5 @@ for (const signal of ["SIGINT", "SIGTERM"])
     });
     setTimeout(() => process.exit(1), 25000).unref();
   });
+
+}
