@@ -79,6 +79,9 @@ async function command(cookie, action, payload) {
 try {
   await start();
   assert.equal((await fetch(origin + "/health")).status, 200);
+  const privateLogin=await (await fetch(origin+'/login')).text();
+  assert.ok(privateLogin.includes('name="email" type="email"'));
+  assert.ok(!privateLogin.includes('The password matches the username.'));
   assert.equal(
     (
       await fetch(origin + "/api/app", {

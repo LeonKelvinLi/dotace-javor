@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import {scryptSync} from "node:crypto";
+import {openDatabase} from "../production/database.mjs";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
 import { mkdtemp, rm } from "node:fs/promises";
@@ -38,9 +40,11 @@ try {
   assert.equal((landing.match(/action="\/auth\/login"/g)||[]).length, 1);
   for (const account of demoAccounts) {
     assert.ok(!landing.includes(account.email));
-    assert.ok(!landing.includes(account.password));
+    assert.ok(landing.includes(account.key));
   }
-  const enterDemo = account => login(account);
+  const enterDemo = account => login({...account,email:account.key});
+  assert.ok(landing.includes('name="email" type="text"'));
+  assert.ok(!landing.includes('href="/forgot-password"'));
   assert.ok(landing.includes('data-lang="en"'));
   assert.ok(landing.includes('lang="cs"'));
   assert.equal((await login(demoAccounts[1], "incorrect")).status, 400);
@@ -108,4 +112,14 @@ try {
   const external = await login(demoAccounts[1], demoAccounts[1].password, "https://attacker.invalid");
   assert.equal(external.headers.get("location"), "/");
   console.log("PASS: logout revokes only its own session and external login redirects are rejected");
+  await stop();
+  const upgrade=await openDatabase({directory:directory+"/native/public-demo"});
+  await upgrade.prepare("DELETE FROM runtime_meta WHERE key='demo_credentials'").run();
+  await upgrade.prepare("UPDATE app_accounts SET salt=?,hash=? WHERE email=?").bind('legacy-test-salt',scryptSync('FederationDemo2026!','legacy-test-salt',64).toString('hex'),demoAccounts[0].email).run();
+  await upgrade.close();await start();
+  assert.equal((await login(demoAccounts[0],'FederationDemo2026!')).status,400);
+  const upgraded=await enterDemo(demoAccounts[0]);assert.equal(upgraded.status,303);
+  assert.equal((await state(upgraded.headers.get('set-cookie').split(';')[0])).contracts.find(c=>c.id===contract.id).status,'approved');
+  assert.equal((await request('/api/app',federation)).status,401);
+  console.log('PASS: shared username/password upgrade revokes old sessions and preserves records');
 } finally { await stop(); await rm(directory, { recursive: true, force: true }); }
