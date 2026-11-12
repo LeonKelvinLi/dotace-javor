@@ -13,7 +13,7 @@
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate",
     "typecheck": "tsc --noEmit",
-    "test": "node --experimental-strip-types --test tests/model.test.ts tests/extraction.test.ts tests/ocr-lifecycle.test.ts tests/autofill.test.ts",
+    "test": "node --experimental-strip-types --test tests/model.test.ts tests/extraction.test.ts tests/ocr-lifecycle.test.ts tests/autofill.test.ts tests/dashboard.test.ts",
     "test:integration": "node tests/backend-integration.mjs",
     "start:render": "node production/server.mjs",
     "test:render": "node tests/render-host.test.mjs",
