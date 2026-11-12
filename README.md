@@ -4,14 +4,14 @@
 
 Organizations upload expense evidence, check the extracted details, and submit a settlement against a grant contract. Federation reviewers accept or reject expenses, request missing information, and approve the final settlement. Originals and the decision history remain attached to each contract.
 
-The public demo opens with two separate training accounts. Choose **Federation** to review settlements or **Organization** to submit expenses for FK Háj. Selecting a role fills its demo credentials; click **Sign in**. These accounts use actual server sessions and server-enforced role/organization permissions, but their credentials are public. **Never upload client information there.** Client production is a separate, authenticated deployment with its own database and storage. This repository includes the production implementation and deployment configuration; provider provisioning and the client acceptance gates are documented below.
+The public demo opens with two separate training accounts. Choose **Federation** to review settlements or **Organization** to submit expenses for FK Háj. Selecting an account signs you in directly. These accounts use actual server sessions and server-enforced role/organization permissions, but their credentials are public. **Never upload client information there.** Client production is a separate, authenticated deployment with its own database and storage. This repository includes the production implementation and deployment configuration; provider provisioning and the client acceptance gates are documented below.
 
 | Training account | Email | Public demo password |
 |---|---|---|
 | Federation reviewer | federation@demo.javor.example | FederationDemo2026! |
 | FK Háj organization administrator | organization@demo.javor.example | OrganizationDemo2026! |
 
-For two people, use separate devices or browser profiles. Each signs in to their own account. The organization submits expenses and the federation reviews the same records. Use **Sign out and switch account** to try the other side in one browser. Demo passwords and memberships cannot be changed, and demo invitations are disabled. These accounts are never created in client production.
+For two people, use separate devices or browser profiles. Each signs in to their own account. The organization submits expenses and the federation reviews the same records. Use **Switch account** to try the other side in one browser. Demo passwords and memberships cannot be changed, and demo invitations are disabled. These accounts are never created in client production.
 
 ## Run locally
 
