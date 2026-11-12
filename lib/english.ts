@@ -1,4 +1,7 @@
 export const english: Record<string, string> = {
+  "Čtení dokladu se nepodařilo načíst. Obnovte stránku.": "Document reading could not load. Reload the page.",
+  "Obnovit stránku": "Reload page",
+  "Rozepsané údaje nelze uchovat pro obnovení stránky. Nejprve doklad uložte.": "This browser cannot retain the draft for a reload. Save the expense first.",
   "Všechna vyúčtování": "All settlements",
   "Stav": "Status",
   "Podporované jsou skutečné PDF, JPEG, PNG a WebP soubory. Přípona souboru nestačí.": "This file is not a valid PDF or image. Choose a PDF, JPG, PNG or WebP file.",

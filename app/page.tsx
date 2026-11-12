@@ -2213,7 +2213,12 @@ function ItemForm({
         </div>}
         {extractFile && editable && (
           <div className="extraction-wrap">
-            <Extraction file={extractFile} onExtract={applyExtraction} onBusyChange={setExtractionBusy} />
+            <Extraction file={extractFile} onExtract={applyExtraction} onBusyChange={setExtractionBusy} onReload={()=>{
+              try {
+                sessionStorage.setItem(draftKey,JSON.stringify({version:item.version,at:Date.now(),value:draft,manual:Array.from(editedFields.current)}));
+                window.location.reload();
+              } catch { setError('Rozepsané údaje nelze uchovat pro obnovení stránky. Nejprve doklad uložte.'); }
+            }} />
           </div>
         )}
         {file ? (
