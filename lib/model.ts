@@ -6,7 +6,7 @@ export type Contract = { id: string; organizationId: string; number: string; pro
 export type Item = { id: string; contractId: string; number: string; supplier: string; supplierIco: string; description: string; category: Category; amount: number; claimed: number; date: string; payment: 'bank' | 'cash'; recipientType: 'organization' | 'person' | 'none' | 'other'; recipientName: string; comment: string; orgReview: 'unchecked' | 'checked' | 'commented'; sfjDecision: 'pending' | 'accepted' | 'rejected' | 'supplement'; sfjReason: string; excluded: boolean; fileIds: string[]; version: number };
 export type StoredFile = { id: string; organizationId: string; contractId: string; name: string; type: string; size: number; sha256: string; kind: 'receipt' | 'contract' | 'instructions' | 'decision' | 'amendment'; createdAt: string };
 export type AuditEvent = { id: string; at: string; actor: string; organizationId: string; contractId: string; itemId: string; action: string; detail: string };
-export type Membership = { id: string; userId: string; email: string; name: string; role: Role; organizationId: string; disabled?: boolean };
+export type Membership = { id: string; userId: string; email: string; name: string; role: Role; organizationId: string; disabled?: boolean; onboardingCompletedAt?: string };
 export type Feedback = { id: string; text: string; at: string; author: string; organizationId: string };
 export type Finding = { code: string; message: string; severity: 'error' | 'warning' };
 export type AppState = { user: { userId: string; email: string; displayName: string }; membership: Membership; organizations: Organization[]; contracts: Contract[]; items: Item[]; files: StoredFile[]; audit: AuditEvent[]; members: Membership[]; feedback: Feedback[]; capabilities: { extraction: string; adviser: string; demo?: boolean; email?: boolean } };
@@ -29,7 +29,7 @@ export function findings(item: Item, contract: Contract): Finding[] {
   if (!item.fileIds.length) add('attachment', 'Chybí příloha dokladu.', 'error');
   if (!isCalendarDate(item.date)) add('date', 'Doplňte platné datum úhrady.', 'error');
   else if (item.date < contract.validFrom || item.date > contract.validTo) add('period', 'Datum úhrady je mimo smluvní období. Vysvětlete souvislost a ověřte podmínky smlouvy.');
-  if (item.recipientType === 'other') add('recipient_company', 'Doklad na jinou firmu nelze uplatnit. Položku vyřaďte.', 'error');
+  if (item.recipientType === 'other') add('recipient_company', 'Doklad na jinou organizaci nebo firmu nelze uplatnit. Položku vyřaďte.', 'error');
   if (item.recipientType === 'person') add('recipient_person', 'Doklad je vystaven na osobu. Uveďte její vztah k organizaci a účel výdaje.');
   if (cents(item.claimed) < cents(item.amount)) add('partial', 'Uplatňujete jen část dokladu. Vysvětlete rozdělení nákladu.');
   if (item.payment === 'cash') {

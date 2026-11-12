@@ -17,6 +17,8 @@ export function postgresSQL(sql, changes = 0) {
         ? `((${column})::jsonb->>'${key}')::bigint`
         : `((${column})::jsonb->>'${key}')`,
   );
+  result = result.replace(/json_set\(([^,]+),'\$\.([A-Za-z_]+)',\?\)/g,
+    (_, column, key) => `jsonb_set((${column})::jsonb,'{${key}}',to_jsonb(?::text))::text`);
   result = result
     .replace(/json_each\(\?\)/g, "jsonb_array_elements(?::jsonb)")
     .replace(/changes\(\)/g, String(Number(changes)));

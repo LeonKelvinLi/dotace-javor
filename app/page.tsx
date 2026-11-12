@@ -16,6 +16,7 @@ import {
   CheckCheck,
   ChevronRight,
   CircleCheck,
+  CircleHelp,
   Clock3,
   Copy,
   Download,
@@ -42,10 +43,11 @@ import {
 } from "lucide-react";
 import Extraction from "@/components/dotace-extract";
 import { parsePaymentDate, type ExtractionContext } from "@/lib/extraction";
-import { mergeAutofill, duplicateReceipt, type AutofillState } from "@/lib/autofill";
+import { mergeAutofill, receiptRecipient, duplicateReceipt, type AutofillState } from "@/lib/autofill";
 import DocumentPreview from "@/components/dotace-document";
 import ReviewExpense from "@/components/dotace-review";
 import Dashboard from "@/components/dotace-dashboard";
+import Onboarding from "@/components/dotace-onboarding";
 import { reviewProgress } from "@/lib/review";
 import { LanguageProvider, LanguageSwitch, useLanguage } from "@/components/language";
 import {
@@ -188,6 +190,8 @@ function Workspace() {
   const [preview, setPreview] = useState(false);
   const [modal, setModal] = useState<Modal>(null);
   const [toast, setToast] = useState("");
+  const [showIntroduction, setShowIntroduction] = useState(false);
+  const [modalSaveVersion,setModalSaveVersion]=useState(0);
   const [busy, setBusy] = useState(false);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -424,14 +428,14 @@ function Workspace() {
             </h1>
             <p>
               {t(inviteToken
-                ? "Přijměte osobní pozvánku pod přihlášeným účtem se stejným e-mailem, pro který byla vytvořena."
+                ? unauthorized ? "Přijměte osobní pozvánku pod přihlášeným účtem se stejným e-mailem, pro který byla vytvořena." : "Potvrďte pozvánku a vstupte do organizace."
                 : error)}
             </p>
             {inviteToken && !unauthorized && (
               <>
-                <div className="notice error" role="alert">
+                {!error.startsWith("K této aplikaci nemáte přístup.")&&<div className="notice error" role="alert">
                   {t(error)}
-                </div>
+                </div>}
                 <button
                   className="button primary"
                   disabled={busy}
@@ -454,9 +458,9 @@ function Workspace() {
             {unauthorized ? (
               <a
                 className="button primary"
-                href={`/signin-with-chatgpt?return_to=${encodeURIComponent(inviteToken ? "/?invite=" + inviteToken : "/")}`}
+                href={`/login?next=${encodeURIComponent(inviteToken ? "/?invite=" + inviteToken : "/")}`}
                 target="_top"
-              >{t("Přihlásit přes ChatGPT ")}<ArrowRight size={16} />
+              >{t("Přihlásit se")}<ArrowRight size={16} />
               </a>
             ) : (
               !inviteToken && (
@@ -516,6 +520,7 @@ function Workspace() {
           </button>
         </nav>
         <div className="sidebar-bottom">
+          <button className="sidebar-help onboarding-reopen" aria-label={t("Jak začít")} title={t("Jak začít")} onClick={()=>{goHome("contracts");setShowIntroduction(true);}}><CircleHelp size={17}/><span>{t("Jak začít")}</span></button>
           <button className="sidebar-help" onClick={()=>setModal({type:"adviser"})}><BookOpen size={17}/><span>{t("Pravidla a nápověda")}</span></button>
           <button
             className="feedback-link"
@@ -539,12 +544,12 @@ function Workspace() {
               </small>
             </span>
             <a
-              aria-label={t(demo ? "Změnit účet" : "Odhlásit")}
-              title={t(demo ? "Změnit účet" : "Odhlásit")}
-              href="/signout-with-chatgpt?return_to=/"
+              aria-label={t("Odhlásit")}
+              title={t("Odhlásit")}
+              href="/logout" onClick={()=>{try{Object.keys(sessionStorage).filter(key=>key.startsWith("dotace-draft:")).forEach(key=>sessionStorage.removeItem(key));}catch{}}}
               target="_top"
             >
-              <LogOut size={16} /><span className="account-link-label">{t(demo ? "Změnit účet" : "Odhlásit")}</span>
+              <LogOut size={16} /><span className="account-link-label">{t("Odhlásit")}</span>
             </a>
           </div>
         </div>
@@ -555,7 +560,6 @@ function Workspace() {
           <span className="workspace-role">{t(federation ? "Federace" : "Účet organizace")}</span>
           <div className="top-actions">
             <LanguageSwitch />
-            {demo&&<span className="pilot">{t("Demo · fiktivní data")}</span>}
             {!demo&&<a href="/account" className="button secondary">{t('Můj účet')}</a>}
             {!demo&&state.membership.role!=='member'&&<a href="/access" className="button secondary">{t('Správa přístupů')}</a>}
           </div>
@@ -610,7 +614,7 @@ function Workspace() {
             <div className="preview-notice no-print">
               <Eye size={14} />{t("Náhled organizace pro administrátora SFJ. Přístupová práva ověřuje server.")}</div>
           )}
-          {contract && organization ? (
+          {contract && organization && state.membership.onboardingCompletedAt && !showIntroduction ? (
             <>
               <button
                 className="back-link no-print"
@@ -1001,6 +1005,13 @@ function Workspace() {
                 />
               </div>
             </>
+          ) : view === "contracts" && (showIntroduction || !state.membership.onboardingCompletedAt) ? (
+            <Onboarding state={state} busy={busy}
+              onContinue={()=>void mutate('completeOnboarding',{},'').then(()=>setShowIntroduction(false)).catch(()=>{})}
+              onAddOrganization={()=>setModal({type:'organization'})}
+              onAddContract={()=>setModal({type:'contract',organizationId:state.organizations.length===1?state.organizations[0].id:''})}
+              onInvite={()=>state.organizations.length===1?setModal({type:'invite',organizationId:state.organizations[0].id}):goHome('organizations')}
+              onOpen={id=>void mutate('completeOnboarding',{},'').then(()=>{setShowIntroduction(false);openContract(id);}).catch(()=>{})}/>
           ) : view === "contracts" ? (
             <>
               <div className="page-heading">
@@ -1130,7 +1141,7 @@ function Workspace() {
                     </p>
                   </div>
                   <div className="heading-actions">
-                    {federation && !preview && (
+                    {(federation || state.membership.role === "org_admin") && !preview && (
                       <button
                         className="button secondary"
                         onClick={() =>
@@ -1199,7 +1210,7 @@ function Workspace() {
                     {!state.members.some(
                       (m) => m.organizationId === organization.id,
                     ) && (
-                      <p className="muted">{t(demo ? "Zkušební účet organizace je přiřazen klubu FK Háj. Ostatní organizace slouží jako příklady pro federaci." : "Zatím žádný člen. Pozvěte správce organizace.")}</p>
+                      <p className="muted">{t("Zatím žádný člen. Pozvěte správce organizace.")}</p>
                     )}
                   </section>
                 </div>
@@ -1354,6 +1365,7 @@ function Workspace() {
                             ? "Pravidla a nápověda"
                             : "Návrh na zlepšení")
           }
+          savedVersion={modalSaveVersion}
           wide={modal.type === "item" || modal.type === "adviser"}
           editor={modal.type === "item"}
           onClose={closeModal}
@@ -1364,7 +1376,7 @@ function Workspace() {
               busy={busy}
               onSave={(o) =>
                 mutate<{id: string}>("saveOrganization", { organization: o }).then(({id}) => {
-                  setModal(null); openOrganization(id);
+                  setModal(null); if(!state.membership.onboardingCompletedAt)goHome("contracts");else openOrganization(id);
                 })
               }
             />
@@ -1377,7 +1389,7 @@ function Workspace() {
               busy={busy}
               onSave={(c) =>
                 mutate<{id: string}>("saveContract", { contract: c }).then(({id}) => {
-                  setModal(null); openContract(id);
+                  setModal(null); if(!state.membership.onboardingCompletedAt)goHome("contracts");else openContract(id);
                 })
               }
             />
@@ -1483,13 +1495,14 @@ function Workspace() {
               organizationId={modal.organizationId}
               federation={!!federation}
               busy={busy}
-              onInvite={(email, role) =>
-                mutate<{ inviteUrl?: string }>(
-                  "invite",
-                  { organizationId: modal.organizationId, email, role },
-                  "Pozvánka byla vytvořená. Odkaz pošlete členovi.",
-                )
-              }
+              onInvite={async (email, role) => {
+                const result=await mutate<{ inviteUrl?: string }>("invite", { organizationId: modal.organizationId, email, role }, "Pozvánka byla vytvořená. Odkaz pošlete členovi.");
+                if(federation&&role==='org_admin'&&!state.membership.onboardingCompletedAt){
+                  await mutate('completeOnboarding',{},'');setShowIntroduction(false);
+                }
+                setModalSaveVersion(value=>value+1);
+                return result;
+              }}
             />
           )}
           {modal.type === "feedback" && (
@@ -1589,7 +1602,7 @@ function ModalShell({
   title,
   children,
   onClose,
-  wide, editor, sessionRecovery,
+  wide, editor, sessionRecovery, savedVersion,
 }: {
   title: string;
   children: React.ReactNode;
@@ -1597,11 +1610,13 @@ function ModalShell({
   wide?: boolean;
   editor?: boolean;
   sessionRecovery?: React.ReactNode;
+  savedVersion?: number;
 }) {
   const { t } = useLanguage();
   const ref = useRef<HTMLDivElement>(null);
   const [confirmClose,setConfirmClose]=useState(false);
   const dirty=useRef(false);
+  useEffect(()=>{dirty.current=false;setConfirmClose(false);},[savedVersion]);
   const requestClose=()=>dirty.current?setConfirmClose(true):onClose();
   const closeRef = useRef(requestClose); closeRef.current = requestClose;
   useEffect(()=>{const protect=(event:BeforeUnloadEvent)=>{if(dirty.current){event.preventDefault();event.returnValue='';}};window.addEventListener('beforeunload',protect);return()=>window.removeEventListener('beforeunload',protect);},[]);
@@ -2090,9 +2105,18 @@ function ItemForm({
   });
   const [noteOpen,setNoteOpen]=useState(Boolean(draft.comment));
   useEffect(()=>{try{if(sessionStorage.getItem(draftKey))setRestored(true);}catch{}},[draftKey]);
-  useEffect(()=>{if(!editable)return;try{sessionStorage.setItem(draftKey,JSON.stringify({version:item.version,at:Date.now(),value:draft,manual:Array.from(editedFields.current)}));}catch{}},[draft,draftKey,editable,item.version]);
+  useEffect(()=>{if(!editable)return;try{sessionStorage.setItem(draftKey,JSON.stringify({version:item.version,at:Date.now(),value:draft,manual:Array.from(editedFields.current),automatic:autofill.current}));}catch{}},[draft,draftKey,editable,item.version]);
   const editedFields = useRef(new Set<string>((()=>{try{const saved=JSON.parse(sessionStorage.getItem(draftKey)||'null');return Array.isArray(saved?.manual)?saved.manual:[];}catch{return [];}})()));
-  const autofill = useRef<AutofillState>({values: item.recipientName ? {} : {recipientName:organizationName},selection:''});
+  const autofill = useRef<AutofillState>((()=>{
+    try{
+      const saved=JSON.parse(sessionStorage.getItem(draftKey)||'null');
+      if(saved?.version===item.version&&Date.now()-saved.at<8*3600000&&saved.value?.contractId===contract.id){
+        if(saved.automatic?.values&&typeof saved.automatic.selection==='string')return saved.automatic;
+        if(!item.id)return {values:Object.fromEntries(Object.entries(draft).filter(([key])=>!editedFields.current.has(key)&&['number','supplier','supplierIco','description','amount','claimed','date','category','payment','recipientType','recipientName'].includes(key))),selection:''};
+      }
+    }catch{}
+    return {values:item.recipientName?{}:{recipientName:organizationName},selection:''};
+  })());
   const [extractionBusy, setExtractionBusy] = useState(false);
   const [error, setError] = useState("");
   const [uploading, setUploading] = useState(false);
@@ -2185,9 +2209,7 @@ function ItemForm({
       const available = known ? Object.fromEntries(allowed.map(key=>[key,known[key as keyof Item]])) : {};
       const proposed = {...available,...patch};
       if (!proposed.recipientName && (proposed.recipientType ?? old.recipientType) === 'organization') proposed.recipientName = organizationName;
-      const sameName=(a:string,b:string)=>a.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'')===b.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');
-      if (proposed.recipientName && !sameName(String(proposed.recipientName),organizationName) && (context.isReport && proposed.recipientType==='organization' || /s\.\s*r\.\s*o|ltd|inc\b|a\.\s*s\./i.test(String(proposed.recipientName)))) proposed.recipientType = 'other';
-      const merged = mergeAutofill(old, proposed, autofill.current, {selection:context.selection,manual:editedFields.current,isNew:!item.id,replace:context.replace});
+      const merged = mergeAutofill(old, receiptRecipient(proposed,organizationName), autofill.current, {selection:context.selection,manual:editedFields.current,isNew:!item.id,replace:context.replace});
       autofill.current = merged.state;
       const next = merged.value;
       if (typeof fields.extractionNote === 'string' && !next.comment.includes(fields.extractionNote)) next.comment = [next.comment,fields.extractionNote].filter(Boolean).join('\n');
@@ -2215,7 +2237,7 @@ function ItemForm({
           <div className="extraction-wrap">
             <Extraction file={extractFile} onExtract={applyExtraction} onBusyChange={setExtractionBusy} onReload={()=>{
               try {
-                sessionStorage.setItem(draftKey,JSON.stringify({version:item.version,at:Date.now(),value:draft,manual:Array.from(editedFields.current)}));
+                sessionStorage.setItem(draftKey,JSON.stringify({version:item.version,at:Date.now(),value:draft,manual:Array.from(editedFields.current),automatic:autofill.current}));
                 window.location.reload();
               } catch { setError('Rozepsané údaje nelze uchovat pro obnovení stránky. Nejprve doklad uložte.'); }
             }} />
@@ -2420,7 +2442,7 @@ function ItemForm({
                   <option value="organization">{t("Na naši organizaci")}</option>
                   <option value="person">{t("Na osobu")}</option>
                   <option value="none">{t("Bez uvedení odběratele")}</option>
-                  <option value="other">{t("Na jinou firmu")}</option>
+                  <option value="other">{t("Na jinou organizaci nebo firmu")}</option>
                 </select>
               </Field>
             </div>
@@ -2929,7 +2951,7 @@ function Summary({
           </div>
         </div>
         <div className="report-foot">
-          <span>{t("Fiktivní pilotní data · SFJ provádí formální kontrolu.")}</span>
+          <span>{t("Vyúčtování dotace")}</span>
           <span>{t("Vytvořeno ")}{t(date(today()))}{t(" ·")}{t(" ")}
             {state.files.filter((f) => f.contractId === contract.id).length}{t(" ")}{t("příloh")}</span>
         </div>

@@ -175,7 +175,7 @@ export function createAuth({
       "Content-Type": "text/html; charset=utf-8",
     });
     res.end(
-      `<!doctype html><html lang="cs" translate="no"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Javor · Account</title><link rel="stylesheet" href="/account.css?v=${escape(process.env.RENDER_GIT_COMMIT || "local")}"></head><body><main><nav aria-label="Language"><button type="button" data-lang="cs">Čeština</button><button type="button" data-lang="en">English</button></nav><p class="brand">JAVOR</p><h1>${copy(...title)}</h1>${error ? `<p class="error" role="alert">${escape(error)}</p>` : ""}${message ? `<p role="status">${escape(message)}</p>` : ""}${form}<footer>${kind === "login" ? `<p><a href="/forgot-password">${copy("Zapomenuté heslo?", "Forgot password?")}</a></p><p>${copy("První přístup vám pošle správce vaší organizace.", "Your organization administrator will send your first invitation.")}</p>` : `<p><a href="/login">${copy("Zpět na přihlášení", "Back to sign in")}</a></p>`}${supportEmail ? `<a href="mailto:${escape(supportEmail)}">${copy("Potřebuji pomoc", "Get help")}</a>` : ""}</footer></main><script src="/account.js?v=${escape(process.env.RENDER_GIT_COMMIT || "local")}" defer></script></body></html>`,
+      `<!doctype html><html lang="cs" translate="no"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Javor · Account</title><link rel="stylesheet" href="/account.css?v=${escape(process.env.RENDER_GIT_COMMIT || "local")}"></head><body><main><nav aria-label="Language"><button type="button" data-lang="cs">Čeština</button><button type="button" data-lang="en">English</button></nav><p class="brand">JAVOR</p><h1>${copy(...title)}</h1>${error ? `<p class="error" role="alert">${escape(error)}</p>` : ""}${message ? `<p role="status">${escape(message)}</p>` : ""}${form}<footer>${kind === "login" ? `<p><a href="/forgot-password">${copy("Zapomenuté heslo?", "Forgot password?")}</a></p><p>${copy("První přístup vám pošle správce vaší organizace.", "Your organization administrator will send your first invitation.")}</p>` : `<p><a href="${kind === "register" ? "/login?next="+encodeURIComponent("/?invite="+invite) : "/login"}">${kind === "register" ? copy("Už máte účet? Přihlaste se", "Already have an account? Sign in") : copy("Zpět na přihlášení", "Back to sign in")}</a></p>`}${supportEmail ? `<a href="mailto:${escape(supportEmail)}">${copy("Potřebuji pomoc", "Get help")}</a>` : ""}</footer></main><script src="/account.js?v=${escape(process.env.RENDER_GIT_COMMIT || "local")}" defer></script></body></html>`,
     );
   }
   async function rate(key, limit = 15, seconds = 600) {
@@ -200,7 +200,7 @@ export function createAuth({
   async function route(req, res, url, body, actor) {
     if (
       demo &&
-      !["/auth/login", "/login", "/signin-with-chatgpt", "/signout-with-chatgpt"].includes(url.pathname) &&
+      !["/auth/login", "/login", "/signin-with-chatgpt", "/signout-with-chatgpt", "/logout"].includes(url.pathname) &&
       (url.pathname.startsWith("/auth/") ||
         [
           "/login",
@@ -220,9 +220,14 @@ export function createAuth({
     if (req.method === "GET") {
       if (["/login", "/signin-with-chatgpt"].includes(url.pathname)) {
         const invite = demo ? "" : url.searchParams.get("invite") || "";
+        const invitationToken=invite||new URL(safePath(url.searchParams.get("next")),origin).searchParams.get("invite");
+        const invitation=invitationToken?await db.prepare("SELECT email,used_by,expires_at FROM invitations WHERE token_hash=?").bind(hash(invitationToken)).first():null;
+        const validInvitation=invitation&&!invitation.used_by&&invitation.expires_at>=new Date().toISOString();
         page(res, {
-          kind: invite ? "register" : "login",
+          kind: invite&&validInvitation ? "register" : "login",
           invite,
+          email:validInvitation?invitation.email:"",
+          error:invite&&!validInvitation?"Pozvánka vypršela nebo už byla použita. Požádejte správce o nový odkaz. / This invitation expired or was used. Ask your administrator for a new link.":"",
           next: safePath(
             url.searchParams.get("next") || url.searchParams.get("return_to"),
           ),
@@ -278,7 +283,7 @@ export function createAuth({
         }
         return true;
       }
-      if (url.pathname === "/signout-with-chatgpt") {
+      if (["/signout-with-chatgpt", "/logout"].includes(url.pathname)) {
         const c = cookies(req);
         if (c.dotace_session)
           await db

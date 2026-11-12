@@ -35,13 +35,12 @@ try {
   assert.equal((await request("/api/app")).status, 401);
   assert.equal((await request("/api/files?id=file-item-balls")).status, 401);
   const landing = await (await request("/login")).text();
-  const entryForms = [...landing.matchAll(/<form method="post" action="\/auth\/login">([\s\S]*?)<\/form>/g)].map(([, html]) => new URLSearchParams([...html.matchAll(/<input type="hidden" name="([^"]+)" value="([^"]*)">/g)].map(([, name, value]) => [name, value])));
-  assert.equal(entryForms.length, 2);
-  const enterDemo = account => {
-    const body = entryForms.find(form => form.get('email') === account.email);
-    assert.ok(body, 'Each role button must submit a complete login form');
-    return fetch(origin + '/auth/login', {method:'POST', redirect:'manual', headers:{Origin:origin}, body});
-  };
+  assert.equal((landing.match(/action="\/auth\/login"/g)||[]).length, 1);
+  for (const account of demoAccounts) {
+    assert.ok(!landing.includes(account.email));
+    assert.ok(!landing.includes(account.password));
+  }
+  const enterDemo = account => login(account);
   assert.ok(landing.includes('data-lang="en"'));
   assert.ok(landing.includes('lang="cs"'));
   assert.equal((await login(demoAccounts[1], "incorrect")).status, 400);
@@ -63,6 +62,13 @@ try {
   const fedState = await state(federation);
   assert.equal(fedState.membership.role, "federation");
   assert.equal(fedState.organizations.length, 3);
+  assert.equal(orgState.membership.onboardingCompletedAt, undefined);
+  const completed = await command(organization, "completeOnboarding", {id:fedState.membership.id, role:"federation"});
+  assert.ok((await state(organization)).membership.onboardingCompletedAt);
+  assert.equal((await state(organization)).membership.role, "org_admin");
+  assert.equal((await state(federation)).membership.onboardingCompletedAt, undefined);
+  assert.deepEqual(await command(organization,"completeOnboarding",{}),completed);
+  console.log("PASS: onboarding persists for the authenticated member only and cannot change roles");
   console.log("PASS: two independent accounts have the correct server-side roles and scopes");
 
   assert.equal((await request("/api/files?id=file-item-lipa", organization)).status, 403);
@@ -96,7 +102,7 @@ try {
   assert.equal((await state(federation)).membership.role, "federation");
   console.log("PASS: demo accounts cannot be disabled or have their passwords changed; sessions and decisions survive restart");
 
-  assert.equal((await request("/signout-with-chatgpt", organization)).status, 303);
+  assert.equal((await request("/logout", organization)).status, 303);
   assert.equal((await request("/api/app", organization)).status, 401);
   assert.equal((await state(federation)).membership.role, "federation");
   const external = await login(demoAccounts[1], demoAccounts[1].password, "https://attacker.invalid");

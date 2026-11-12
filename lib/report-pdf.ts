@@ -78,7 +78,7 @@ export async function makeSettlementPdf(
   const generatedAt = options.generatedAt ?? new Date();
   pdf.setTitle(`Vyúčtování dotace ${contract.number} · ${organization.name}`);
   pdf.setAuthor("Sportovní federace Javor · Dotace");
-  pdf.setSubject("Fiktivní pilotní vyúčtování dotace");
+  pdf.setSubject("Vyúčtování dotace");
   pdf.setCreator("Dotace · SFJ");
   pdf.setCreationDate(generatedAt);
 
@@ -420,7 +420,7 @@ export async function makeSettlementPdf(
       color: line,
     });
     pdfPage.drawText(
-      `SFJ · Fiktivní pilotní údaje · Vytvořeno ${generatedAt.toLocaleString("cs-CZ")}`,
+      `SFJ · Vytvořeno ${generatedAt.toLocaleString("cs-CZ")}`,
       { x: margin, y: 22, size: 6.5, font, color: muted },
     );
     const number = `${index + 1} / ${pageNumber}`;

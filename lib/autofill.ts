@@ -27,3 +27,10 @@ export function duplicateReceipt<T extends {id:string;contractId:string;number:s
   if (!number || !supplier) return undefined;
   return items.find(i=>i.id!==item.id && i.contractId===item.contractId && normalize(i.number)===number && (normalize(i.supplier)===supplier || Boolean(item.supplierIco && i.supplierIco===item.supplierIco)));
 }
+
+/** A recognized buyer must not inherit the current organization's default. */
+export function receiptRecipient(fields:Record<string,unknown>, organizationName:string) {
+  const normalize=(value:string)=>value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');
+  if(typeof fields.recipientName!=='string'||!fields.recipientName.trim()||!organizationName.trim()||['person','none'].includes(String(fields.recipientType)))return fields;
+  return {...fields,recipientType:normalize(fields.recipientName)===normalize(organizationName)?'organization':'other'};
+}

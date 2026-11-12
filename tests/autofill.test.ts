@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {mergeAutofill, duplicateReceipt} from '../lib/autofill.ts';
+import {mergeAutofill, duplicateReceipt, receiptRecipient} from '../lib/autofill.ts';
 import {documentProposal} from '../lib/extraction.ts';
 const report=readFileSync(new URL('./fixtures/settlement-report.txt',import.meta.url),'utf8');
 test('settlement report yields separate receipts instead of the grant or settlement totals',()=>{
@@ -36,4 +36,10 @@ test('duplicate detection is scoped to the same contract and supplier and exclud
  const receipt={id:'1',contractId:'a',number:'FV-2026-101',supplier:'Sport Vzor s.r.o.',supplierIco:'12345678'};
  assert.equal(duplicateReceipt([receipt],{...receipt,id:''})?.id,'1');assert.equal(duplicateReceipt([receipt],receipt),undefined);
  assert.equal(duplicateReceipt([receipt],{...receipt,id:'',contractId:'b'}),undefined);assert.equal(duplicateReceipt([receipt],{...receipt,id:'',supplier:'Other vendor',supplierIco:'87654321'}),undefined);
+});
+
+test('OCR never labels a different club as our organization',()=>{
+ assert.equal(receiptRecipient({recipientName:'FK Háj, z. s.'},'Onboarding Sports Club').recipientType,'other');
+ assert.equal(receiptRecipient({recipientName:'FK Haj z.s.'},'FK Háj, z. s.').recipientType,'organization');
+ assert.equal(receiptRecipient({recipientName:'Jane Example',recipientType:'person'},'Sports Club').recipientType,'person');
 });
