@@ -3,3 +3,5 @@
 .login-shell{max-width:560px}.login-form{padding-top:0;border-top:0;margin-top:20px}.demo-entry{display:grid;gap:12px;margin-top:28px}.demo-entry-button{display:flex;align-items:center;justify-content:space-between;text-align:left;gap:18px;margin:0;padding:22px;background:#fff;color:#193337;border:1px solid #cbd5ce;border-radius:6px;min-height:92px}.demo-entry-button:hover{background:#f0f5ed;border-color:#60836a}.demo-entry-button strong{display:block;font-size:19px}.demo-entry-button small{display:block;font-size:13px;color:#5b6d63;margin-top:4px}.login-footer{border:0;padding:0;margin:24px 0 4px}.login-header{padding:22px 32px}.login-content{padding:32px}
 
 .login-form fieldset{border:0;margin:0;padding:0;min-width:0}.login-form fieldset:disabled{opacity:.55}.login-pending{padding:14px 16px;background:#f1f4ee;border:1px solid #dbe3d6;border-radius:5px;font-size:14px;line-height:1.6}.login-footer a{display:block;margin-top:10px}
+
+.login-account-hint{font-size:13px;line-height:1.8;color:#526461;margin:0 0 24px}.login-account-hint code{font:inherit;font-weight:650;color:#233c3e}

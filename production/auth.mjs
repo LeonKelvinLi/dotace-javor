@@ -69,13 +69,14 @@ export function createAuth({
     res.writeHead(303, { Location: url });
     res.end();
   };
-  async function addAccount(email, password) {
+  async function addAccount(email, password, replaceDemo = false) {
+    if(replaceDemo&&!demo)throw new Error("Shared credential updates require demo mode");
     const salt = randomBytes(24).toString("hex");
     const derived = Buffer.from(await scrypt(password, salt, 64)).toString(
       "hex",
     );
     await db
-      .prepare("INSERT INTO app_accounts VALUES (?,?,?)")
+      .prepare(replaceDemo?"INSERT INTO app_accounts VALUES (?,?,?) ON CONFLICT(email) DO UPDATE SET salt=excluded.salt,hash=excluded.hash":"INSERT INTO app_accounts VALUES (?,?,?)")
       .bind(email, salt, derived)
       .run();
   }
@@ -311,7 +312,8 @@ export function createAuth({
     if (req.method !== "POST" || !url.pathname.startsWith("/auth/"))
       return false;
     const f = new URLSearchParams(body.toString());
-    const email = (f.get("email") || actor?.email || "").trim().toLowerCase(),
+    const identifier=(f.get("email") || actor?.email || "").trim().toLowerCase();
+    const email = demo ? demoAccounts.find(account=>account.key===identifier)?.email||identifier : identifier,
       password = f.get("password") || "",
       invite = f.get("invite") || "";
     const ip = String(

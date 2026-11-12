@@ -6,7 +6,7 @@ Login uses personal email/password and an invitation for first access. Public ro
 
 ## Deployment state
 
-The existing Render service was still in DEMO_MODE at the start of this change. Do not deploy the label removal while leaving that public authentication active. No paid service setup has been approved since the client's request to keep it pending Filip's approval.
+On 12 November, Leon explicitly chose to keep the existing service enabled with shared accounts: federation/federation and organization/organization. This evaluation workspace remains DEMO_MODE=true, using its existing fictional records. The login page identifies shared test access; the application header no longer carries the old demo badge. Production authentication does not accept these username aliases or expose these hints. No paid service setup has been approved since the request to keep it pending Filip's approval.
 
 APP_ENV=prelaunch is an optional closed-access transition. It serves a disabled sign-in page, rejects all auth/API/file requests, clears old session cookies on logout and never opens or migrates the existing database. Set DEMO_MODE=false and SEED_DEMO=false together. Its health response explicitly reports mode=prelaunch and clientAccess=false. Existing disk contents are preserved, not imported into the client workspace.
 
