@@ -4,11 +4,12 @@ import { Component, useCallback, useEffect, useRef, useState, type ReactNode } f
 import { ScanText } from 'lucide-react';
 import { extractDocument, convertToCzk, type ExtractionMode, type ExtractionContext, type ExtractionResult } from '@/lib/extraction';
 
-type Props = { file: File; mode?: ExtractionMode; onExtract: (fields: Record<string, unknown>, context: ExtractionContext) => void; onBusyChange?: (busy: boolean) => void };
-function DotaceExtract({ file, mode = 'receipt', onExtract, onBusyChange }: Props) {
+type Props = { file: File; mode?: ExtractionMode; onExtract: (fields: Record<string, unknown>, context: ExtractionContext) => void; onBusyChange?: (busy: boolean) => void; onReload?: () => void };
+function DotaceExtract({ file, mode = 'receipt', onExtract, onBusyChange, onReload }: Props) {
   const { t } = useLanguage();
   const [busy, setBusy] = useState(false), [message, setMessage] = useState(''), [documentResult, setResult] = useState<ExtractionResult | null>(null), [error, setError] = useState(''), [aiEnabled,setAIEnabled] = useState(false);
   const [selected, setSelected] = useState(0);
+  const [needsReload, setNeedsReload] = useState(false);
   const result = documentResult ? {...documentResult, ...(documentResult.receipts?.[selected] || {})} : null;
   const callbacks = useRef({onExtract,onBusyChange}); callbacks.current = {onExtract,onBusyChange};
   const selection = `${file.name}:${file.size}:${file.lastModified}:${selected}`;
@@ -26,7 +27,7 @@ function DotaceExtract({ file, mode = 'receipt', onExtract, onBusyChange }: Prop
   const run = useCallback(async (useAI = false) => {
     current.current?.abort();
     const controller = new AbortController(); current.current = controller;
-    setBusy(true); setError(''); setResult(null); setMessage('Připravuji OCR…');
+    setBusy(true); setError(''); setNeedsReload(false); setResult(null); setMessage('Připravuji OCR…');
     try {
       // Every file passes through local OCR. Optional AI only refines an OCR result.
       const recognized = await extractDocument(file, mode, setMessage, controller.signal);
@@ -39,7 +40,12 @@ function DotaceExtract({ file, mode = 'receipt', onExtract, onBusyChange }: Prop
         if (!controller.signal.aborted) setResult(data);
       } else setResult(recognized);
     } catch (e) {
-      if (!controller.signal.aborted) setError(e instanceof Error ? e.message : 'Čtení se nezdařilo. Zkuste je znovu.');
+      if (!controller.signal.aborted) {
+        const detail = e instanceof Error ? e.message : 'Čtení se nezdařilo. Zkuste je znovu.';
+        const stale = /dynamically imported module|Loading chunk|ChunkLoadError|Importing a module script failed/i.test(detail);
+        setNeedsReload(stale);
+        setError(stale ? 'Čtení dokladu se nepodařilo načíst. Obnovte stránku.' : detail);
+      }
     } finally { if (current.current === controller) setBusy(false); }
   }, [file, mode]);
   useEffect(() => {
@@ -65,13 +71,13 @@ function DotaceExtract({ file, mode = 'receipt', onExtract, onBusyChange }: Prop
   const count = result ? Object.keys(result.fields).length : 0;
   return <section className="extract-panel" aria-label={t("Údaje z dokumentu")}>
     <div className="extract-heading">
-      <strong key={`${busy}:${count}`}>{t(busy ? 'Čtení dokladu' : result ? 'Doklad je přečtený' : 'Údaje z dokladu')}</strong>
+      <strong key={`${busy}:${count}`}>{t(busy ? 'Čtení dokladu' : result ? 'Údaje načteny' : 'Údaje z dokladu')}</strong>
       <div className="extract-actions">
-        {busy ? <button type="button" className="btn" onClick={cancel}><span>{t("Zastavit")}</span></button> : <button type="button" className="btn" onClick={()=>void run()}><ScanText size={14}/><span>{t("Načíst znovu")}</span></button>}
-        {aiEnabled && result && <button type="button" className="btn" disabled={busy} onClick={()=>void run(true)}><span>{t("Ověřit pomocí AI")}</span></button>}
+        {busy ? <button type="button" className="btn" onClick={cancel}><span>{t("Zastavit")}</span></button> : needsReload && onReload ? <button type="button" className="btn" onClick={onReload}>{t("Obnovit stránku")}</button> : <button type="button" className="btn" onClick={()=>void run()}><ScanText size={14}/><span>{t("Načíst znovu")}</span></button>}
+
       </div>
     </div>
-    <p role="status" aria-live="polite" className="extract-status"><span key={busy?message:result?'done':message}>{t(busy ? message : result ? 'Údaje jsou ve formuláři. Zkontrolujte je podle originálu.' : message === 'Čtení zastaveno.' ? message : '')}</span></p>
+    {!error && (busy || !result) && <p role="status" aria-live="polite" className="extract-status">{t(message)}</p>}
     {error && <div role="alert" className="extract-warning"><p>{t(error)}</p><p>{t("Rozepsané údaje zůstaly zachované.")}</p></div>}
     {result && <>
       {documentResult!.receipts && <label className="extract-report"><span>{t("Vyberte doklad z vyúčtování")}</span><select aria-label={t("Doklad ve vyúčtování")} value={selected} onChange={e=>{setSelected(Number(e.target.value));setRate('');setRateSource('');}}>{documentResult!.receipts.map((receipt,i)=><option key={i} value={i}>{t(`${i+1}. ${receipt.fields.number} · ${receipt.fields.supplier}`)}</option>)}</select></label>}
@@ -87,8 +93,9 @@ function DotaceExtract({ file, mode = 'receipt', onExtract, onBusyChange }: Prop
       </div>}
       {!count && <p>{t("Dokladové údaje se nepodařilo určit. Doplňte je do formuláře; přečtený text najdete níže.")}</p>}
       <details className="extract-details"><summary>{t("Podrobnosti čtení")}</summary>
+        {aiEnabled && <button type="button" className="btn" disabled={busy} onClick={()=>void run(true)}>{t("Ověřit pomocí AI")}</button>}
         <p>{t(`${result.method}${result.pages > 0 ? ` · ${result.pages} stran` : ''}${result.confidence !== undefined ? ` · jistota OCR ${Math.round(result.confidence)} %` : ''}`)}</p>
-        <p>{t(`Rozpoznaných polí: ${count}. Uložené údaje a ruční opravy mají přednost.`)}</p>
+
         <textarea aria-label={t("Rozpoznaný text")} translate="no" value={result.text} readOnly rows={7} style={{width:'100%'}} />
         {!!count && <div className="extract-restore"><button type="button" className="btn" onClick={()=>apply()}><span>{t("Znovu vyplnit z dokumentu")}</span></button></div>}
       </details>

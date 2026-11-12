@@ -1,23 +1,23 @@
 # Using Dotace Javor
 
-Open https://dotace-javor-99x6.onrender.com/. Choose **Organization** or **Federation** on the login page; its demo email and password fill automatically. Click **Sign in**. The organization account belongs to FK Háj and prepares expenses; the federation account reviews submitted settlements across organizations. Use separate devices or browser profiles for two people working at the same time, or **Sign out and switch account** to try both roles yourself. These are public training credentials: use fictional test documents only. The app starts in Czech; **English** changes the interface and remembers your preference. Original document content remains in its original language.
+Open https://dotace-javor-99x6.onrender.com/. Choose **Organization** or **Federation** to enter the demo. The organization account belongs to FK Háj and prepares expenses; the federation account reviews submitted settlements. Use separate browser profiles or devices for two people, or **Switch account** to try both roles. Use fictional documents only. Czech is the default; **English** remembers your preference. Private deployments use email and password.
 
 ## Try the sample first
 
-1. Sign in as **Organization**, then click **Otevřít mé vyúčtování / Open my settlement**. This opens a draft if one is available; submitted settlements remain visible in the list.
-2. Follow the green next-step panel. It opens the next expense needing attention.
-3. Document reading runs automatically. Compare the details with the original, explain any warning, check the confirmation box, then **Uložit doklad / Save expense**.
-4. When all expenses are checked, the next action becomes **Zkontrolovat a odeslat / Review and submit**. Read the declaration before submitting.
-5. The other person signs in as **Federation** (or use **Sign out and switch account**). Open **Ke schválení / Review & approve** in the sidebar, then **Zkontrolovat výdaje / Review expenses** on the submitted settlement. Two visible steps show expense review and final approval.
-6. Click **Posoudit další výdaj / Review next expense**. Compare the original with the compact expense summary. Choose **Accept expense**, **Reject expense**, or **Ask for information**. Rejection and information requests require a reason. Save with the visible bottom button; the next undecided expense opens automatically.
-7. The final decision opens **Step 2 · Approve settlement**. Enter a short conclusion, check the proposed reduction, then **Approve and close settlement**. The summary opens automatically with **Download PDF**. Outstanding information requests block approval; the page explains how to resolve them. The organization account sees the approved result after refreshing.
+1. Choose **Organization** and **Open** a settlement marked **In preparation**.
+2. Click **Add expense**, select a PDF or image, and wait for automatic reading.
+3. Compare the filled details with the original, resolve any warning, check the confirmation box, and **Save expense**. Use **Review** to check existing expenses.
+4. Once the expenses are checked, choose **Submit to federation** and confirm the declaration.
+5. Switch to **Federation**, select **To review**, and open **Review** on the submitted settlement.
+6. Click **Review next expense**. **Accept expense** saves and opens the next undecided expense. **Reject expense** and **Ask for information** require a reason, then confirmation with the displayed button.
+7. After all expenses have a final decision, the approval form opens. Enter a conclusion, check the reduction, and select **Approve and close settlement**. The summary opens with **Download PDF**. Information requests must be resolved before approval. The organization sees the result after refreshing.
 
 Use fictional records for practice. Real submissions and approval decisions belong to the authorized organization and federation reviewers.
 
 ## Set up your own workspace
 
-1. Click **Založit vlastní organizaci / Set up your own organization**. Enter its name, eight-digit company ID and registered address. You can attach its document for autofill or explicitly look it up in ARES. Check the result and save.
-2. The saved organization opens automatically. Click **Založit smlouvu / Create contract**, enter the grant and dates, then save. Optional cash/payment conditions are collapsed under **Další podmínky a hotovost / Other conditions and cash payments**.
+1. As the federation, open **Organizations → Add organization**. Enter its name, eight-digit company ID and registered address. You can attach its document for autofill or explicitly look it up in ARES. Check the result and save.
+2. The saved organization opens automatically. Click **Založit smlouvu / New contract**, enter the grant and dates, then save. Optional cash/payment conditions are collapsed under **Další podmínky a hotovost / Other conditions and cash payments**.
 3. The saved contract opens automatically. Add the signed contract and relevant policy files under **Smlouva a pravidla / Contract and rules**.
 4. Add expenses, check the autofilled details, save and submit. You can then review them yourself from the **Ke kontrole / To review** filter. The demo lets you try both sides of the workflow.
 

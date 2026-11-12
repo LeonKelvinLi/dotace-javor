@@ -15,19 +15,6 @@ function language(value) {
 document
   .querySelectorAll("[data-lang]")
   .forEach((e) => e.addEventListener("click", () => language(e.dataset.lang)));
-document.querySelectorAll("[data-demo-email]").forEach((choice) => {
-  const fillAccount = () => {
-    document.getElementById("email").value = choice.dataset.demoEmail;
-    document.getElementById("password").value = choice.dataset.demoPassword;
-  };
-  choice.addEventListener("change", fillAccount);
-  choice.addEventListener("click", fillAccount);
-});
-document.getElementById("email")?.addEventListener("input", (e) => {
-  document.querySelectorAll("[data-demo-email]").forEach((choice) => {
-    choice.checked = choice.dataset.demoEmail === e.target.value.trim().toLowerCase();
-  });
-});
 document.getElementById("show-password")?.addEventListener("click", (e) => {
   const input = document.getElementById("password");
   const visible = input.type === "password";
