@@ -190,9 +190,6 @@ function Workspace() {
   const [toast, setToast] = useState("");
   const [busy, setBusy] = useState(false);
   const [query, setQuery] = useState("");
-  const [program, setProgram] = useState("");
-  const [year, setYear] = useState("");
-  const [orgFilter, setOrgFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [itemFilter, setItemFilter] = useState("all");
   const [selected, setSelected] = useState<string[]>([]);
@@ -212,17 +209,30 @@ function Workspace() {
       throw e;
     }
   }, []);
+  const readLocation = useCallback(() => {
+    const params = new URLSearchParams(window.location.search);
+    const nextView = params.get('view');
+    const nextTab = params.get('tab');
+    setView(nextView === 'organizations' || nextView === 'activity' ? nextView : 'contracts');
+    setContractId(params.get('contract') || '');
+    setOrganizationId(params.get('organization') || '');
+    setTab(['conditions', 'summary', 'history'].includes(nextTab || '') ? nextTab as Tab : 'items');
+    setStatusFilter(['open', 'submitted', 'approved'].includes(params.get('status') || '') ? params.get('status')! : '');
+    setInviteToken(params.get('invite') || '');
+    setQuery(''); setSelected([]); setItemFilter('all'); setModal(null);
+  }, []);
   useEffect(() => {
     void load().catch(() => {});
-    const params = new URLSearchParams(window.location.search);
-    setContractId(params.get("contract") || "");
-    setInviteToken(params.get("invite") || "");
-    const initialTab = params.get("tab");
-    if (
-      ["items", "conditions", "summary", "history"].includes(initialTab || "")
-    )
-      setTab(initialTab as Tab);
-  }, [load]);
+    readLocation();
+    window.addEventListener('popstate', readLocation);
+    return () => window.removeEventListener('popstate', readLocation);
+  }, [load, readLocation]);
+  const navigate = (values: Record<string, string>) => {
+    const params = new URLSearchParams(Object.entries(values).filter(([, value]) => value));
+    const target = window.location.pathname + (params.size ? `?${params}` : '');
+    if (target !== window.location.pathname + window.location.search) window.history.pushState(null, '', target);
+    readLocation();
+  };
   useEffect(() => {
     if (!toast) return;
     const timeout = setTimeout(() => setToast(""), 6000);
@@ -258,25 +268,11 @@ function Workspace() {
       setBusy(false);
     }
   };
-  const openContract = (id: string) => {
-    setContractId(id);
-    setOrganizationId("");
-    setTab("items");
-    setSelected([]);
-    setItemFilter("all");
-    window.history.replaceState(
-      null,
-      "",
-      `?contract=${encodeURIComponent(id)}`,
-    );
-  };
-  const goHome = (newView: View) => {
-    setView(newView);
-    setContractId("");
-    setOrganizationId("");
-    setQuery("");
-    window.history.replaceState(null, "", window.location.pathname);
-  };
+  const openContract = (id: string) => { setPreview(false); navigate({contract:id,tab:state?.contracts.find(c=>c.id===id)?.status==='approved'?'summary':''}); };
+  const openOrganization = (id: string) => navigate({view:'organizations',organization:id});
+  const goHome = (newView: View) => navigate({view:newView === 'contracts' ? '' : newView,
+    organization:newView === 'organizations' && state?.membership.role !== 'federation' && state?.organizations.length === 1 ? state.organizations[0].id : ''});
+  const showTab = (nextTab: Tab) => navigate({contract:contractId,tab:nextTab === 'items' ? '' : nextTab});
   const sessionRecovery=sessionExpired&&<div className="session-recovery" role="alert"><strong>{t('Přihlášení vypršelo. Rozepsaný formulář zůstává otevřený.')}</strong><a className="button primary" href="/login" target="_blank" rel="noopener noreferrer">{t('Přihlásit se v nové kartě')}</a><button className="button secondary" onClick={()=>void load().then(()=>setSessionExpired(false)).catch(()=>{})}>{t('Už jsem přihlášený · pokračovat')}</button></div>;
   useEffect(()=>{if(sessionExpired)document.querySelector<HTMLAnchorElement>('.session-recovery a')?.focus();},[sessionExpired]);
   const closeModal = () => {
@@ -307,15 +303,13 @@ function Workspace() {
   );
   const contractItems =
     state?.items.filter((i) => i.contractId === contractId) || [];
+  const matchesSearch = (text: string) => {
+    const normalize = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('cs');
+    const haystack = normalize(text);
+    return normalize(query).trim().split(/\s+/).every(word => haystack.includes(word));
+  };
   const filteredItems = contractItems.filter((i) => {
-    const q = query.trim().toLocaleLowerCase("cs");
-    if (
-      q &&
-      !`${i.number} ${i.supplier} ${i.description}`
-        .toLocaleLowerCase("cs")
-        .includes(q)
-    )
-      return false;
+    if (!matchesSearch(`${i.number} ${i.supplier} ${i.description}`)) return false;
     if (itemFilter === "missing") return !i.fileIds.length;
     if (itemFilter === "comments") return !!i.comment;
     if (itemFilter === "warnings")
@@ -329,23 +323,13 @@ function Workspace() {
   const filteredContracts =
     state?.contracts.filter(
       (c) =>
-        (!program || c.program === program) &&
-        (!year || c.year === Number(year)) &&
-        (!orgFilter || c.organizationId === orgFilter) &&
         (!statusFilter || (statusFilter === "open" ? ["draft", "changes"].includes(c.status) : c.status === statusFilter)) &&
-        (!query ||
-          `${c.number} ${c.program} ${state.organizations.find((o) => o.id === c.organizationId)?.name}`
-            .toLocaleLowerCase("cs")
-            .includes(query.toLocaleLowerCase("cs"))),
+        matchesSearch(`${c.number} ${c.year} ${c.program} ${t(c.program)} ${state.organizations.find((o) => o.id === c.organizationId)?.name}`),
     ) || [];
   const editable =
     contract && (contract.status === "draft" || contract.status === "changes");
   const reviewing = federation && !preview && contract?.status === "submitted";
-  const review = reviewProgress(contractItems);
-  const reviewQueue = state?.contracts.filter(c => c.status === 'submitted') || [];
-  const openReviewQueue = () => {
-    goHome('contracts'); setStatusFilter('submitted'); setProgram(''); setYear(''); setOrgFilter(''); setPreview(false);
-  };
+  const showFederationDecision = contract?.status !== "draft" || contractItems.some(item => item.sfjDecision !== "pending");
   const canSubmit =
     (federation || state?.membership.role === "org_admin") && editable;
   const exportCsv = () => {
@@ -507,25 +491,21 @@ function Workspace() {
           <span className="brand-icon" translate="no">{t("J")}</span>
           <span><strong translate="no">{t("JAVOR")}</strong><span className="brand-sub">{t("Evidence dotací")}</span></span>
         </a>
-        <div className="workspace-label">{t("Evidence")}</div>
+
         <nav aria-label={t("Hlavní navigace")}>
           <button
-            className={`nav-item ${view === "contracts" && statusFilter !== 'submitted' ? "active" : ""}`}
-            onClick={() => { goHome("contracts"); setStatusFilter(''); }}
+            className={`nav-item ${view === "contracts" ? "active" : ""}`}
+            onClick={() => goHome("contracts")}
           >
             <LayoutDashboard size={18} />
-            <span>{t("Přehled")}</span>
-            <span className="nav-count">{state.contracts.length}</span>
+            <span>{t("Vyúčtování")}</span>
           </button>
-          {federation && <button className={`nav-item ${view === 'contracts' && statusFilter === 'submitted' ? 'active' : ''}`} onClick={openReviewQueue}>
-            <ShieldCheck size={18}/><span>{t('Ke schválení')}</span><span className="nav-count">{reviewQueue.length}</span>
-          </button>}
           <button
             className={`nav-item ${view === "organizations" ? "active" : ""}`}
             onClick={() => goHome("organizations")}
           >
             <Building2 size={18} />
-            <span>{t("Organizace")}</span>
+            <span>{t(!federation && state.organizations.length === 1 ? "Moje organizace" : "Organizace")}</span>
           </button>
           <button
             className={`nav-item ${view === "activity" ? "active" : ""}`}
@@ -559,12 +539,12 @@ function Workspace() {
               </small>
             </span>
             <a
-              aria-label={t("Odhlásit")}
-              title={t("Odhlásit")}
+              aria-label={t(demo ? "Změnit účet" : "Odhlásit")}
+              title={t(demo ? "Změnit účet" : "Odhlásit")}
               href="/signout-with-chatgpt?return_to=/"
               target="_top"
             >
-              <LogOut size={16} />
+              <LogOut size={16} /><span className="account-link-label">{t(demo ? "Změnit účet" : "Odhlásit")}</span>
             </a>
           </div>
         </div>
@@ -572,38 +552,15 @@ function Workspace() {
       {!modal&&sessionRecovery}
       <div className="app-main">
         <header className="topbar no-print">
-          <div className="breadcrumb">
-            <Leaf size={15} />
-            <span>{t("Sportovní federace Javor")}</span>
-            <ChevronRight size={14} />
-            <strong>
-              {t(contract
-                ? contract.number
-                : view === "contracts"
-                  ? "Smlouvy a vyúčtování"
-                  : view === "organizations"
-                    ? "Organizace a lidé"
-                    : "Historie")}
-            </strong>
-          </div>
+          <span className="workspace-role">{t(federation ? "Federace" : "Účet organizace")}</span>
           <div className="top-actions">
             <LanguageSwitch />
-            {demo&&<span className="pilot"><span />{t("Pilot · fiktivní data")}</span>}
+            {demo&&<span className="pilot">{t("Demo · fiktivní data")}</span>}
             {!demo&&<a href="/account" className="button secondary">{t('Můj účet')}</a>}
             {!demo&&state.membership.role!=='member'&&<a href="/access" className="button secondary">{t('Správa přístupů')}</a>}
-            {federation && !demo && (
-              <label className="preview-switch">
-                <input
-                  type="checkbox"
-                  checked={preview}
-                  onChange={(e) => setPreview(e.target.checked)}
-                />
-                <Eye size={14} />{t("Pohled organizace (náhled)")}</label>
-            )}
           </div>
         </header>
         <main className="main-content" key={contractId ? `contract-${contractId}` : `${view}-${organizationId}`}>
-          {demo && <div className="demo-notice no-print"><span><span className="demo-dot"/>{t("Zkušební prostor · pouze fiktivní údaje")}</span><a href="/signout-with-chatgpt">{t("Změnit zkušební účet")}<ArrowUpRight size={13}/></a></div>}
           {error && (
             <div className="notice error no-print" role="alert">
               <TriangleAlert size={18} />
@@ -659,7 +616,7 @@ function Workspace() {
                 className="back-link no-print"
                 onClick={() => goHome("contracts")}
               >
-                <ArrowLeft size={15} />{t("Všechny smlouvy")}</button>
+                <ArrowLeft size={15} />{t("Všechna vyúčtování")}</button>
               <div className="page-heading">
                 <div>
                   <div className="eyebrow">
@@ -671,17 +628,8 @@ function Workspace() {
                       {t(statusNames[contract.status])}
                     </span>
                   </h1>
-                  <p>
-                    {t(contract.program)} <span className="dot-separator">{t("·")}</span>{t(" ")}{t("Vyúčtování dotace")}</p>
                 </div>
                 <div className="heading-actions no-print">
-                  <button
-                    className="button secondary"
-                    onClick={() => setModal({ type: "adviser" })}
-                  >
-                    <BookOpen size={16} />
-                    <span>{t("Pravidla")}</span>
-                  </button>
                   {federation && !preview && editable && (
                     <button
                       className="button secondary"
@@ -707,17 +655,15 @@ function Workspace() {
                 </div>
               </div>
               {contract.status === 'submitted' && federation && preview && <div className="notice review-mode-notice"><div><strong>{t('Nyní vidíte pohled organizace.')}</strong><p>{t('Pro kontrolu a schválení přepněte na kontrolora.')}</p></div><button className="button primary" onClick={() => setPreview(false)}>{t('Přejít ke kontrole')}</button></div>}
-              <NextStep
+              {tab === "items" && <NextStep
                 contract={contract}
                 items={contractItems}
                 canReview={Boolean(reviewing)}
                 canSubmit={Boolean(canSubmit)}
-                onAdd={() => setModal({ type: "item" })}
                 onOpen={(item) => setModal({ type: "item", item })}
                 onSubmit={() => setModal({ type: "submit" })}
                 onApprove={() => setModal({ type: "approve" })}
-                onSummary={() => setTab("summary")}
-              />
+              />}
               <div className="contract-metrics">
                 <Metric
                   label="Přidělená dotace"
@@ -727,27 +673,11 @@ function Workspace() {
                 <Metric
                   label="Uplatněné náklady"
                   value={money(total(contractItems))}
-                  hint={`${contractItems.filter((i) => !i.excluded).length} dokladů`}
                   icon={<FolderOpen size={18} />}
-                />
-                <Metric
-                  label={contract.status === 'submitted' ? 'Zbývá rozhodnout' : 'Ke kontrole organizace'}
-                  value={String(
-                    contract.status === 'submitted' ? review.remaining : contractItems.filter(
-                      (i) => !i.excluded && i.orgReview === "unchecked",
-                    ).length,
-                  )}
-                  hint="dokladů"
-                  icon={<CheckCheck size={18} />}
                 />
                 <Metric
                   label="Termín vyúčtování"
                   value={date(contract.deadline)}
-                  hint={
-                    contract.status === "approved"
-                      ? "Kontrola uzavřena"
-                      : "Dle nastavení smlouvy"
-                  }
                   icon={<Clock3 size={18} />}
                 />
               </div>
@@ -770,8 +700,7 @@ function Workspace() {
                     className={tab === key ? "selected" : ""}
                     key={key}
                     onClick={() => {
-                      setTab(key);
-                      setQuery("");
+                      showTab(key);
                     }}
                   >
                     <Icon size={16} />
@@ -785,11 +714,9 @@ function Workspace() {
                   <div className="panel-header">
                     <div>
                       <h2>{t(reviewing ? 'Výdaje ke kontrole' : "Doklady")}</h2>
-                      <p>{t(reviewing ? 'U každého výdaje otevřete originál a uložte rozhodnutí. Schválení celého vyúčtování je samostatný poslední krok.' : "Vyberte doklad k úpravě nebo přidejte nový.")}</p>
+
                     </div>
                     <div className="row-actions">
-                      <button className="button secondary" onClick={exportCsv}>
-                        <Download size={15} />{t("CSV export")}</button>
                       {editable && (
                         <button
                           className="button primary"
@@ -828,17 +755,9 @@ function Workspace() {
                       <option value="comments">{t("S komentářem")}</option>
                       <option value="missing">{t("Bez přílohy")}</option>
                       <option value="supplement">{t("Vyžádané doplnění")}</option>
-                      {itemFilter === "sample" && (
-                        <option value="sample">{t("Náhodný vzorek")}</option>
-                      )}
+                      {itemFilter === "sample" && <option value="sample">{t("Náhodný vzorek")}</option>}
                     </select>
-                    {reviewing && (
-                      <button
-                        className="button text-button"
-                        onClick={randomSample}
-                      >
-                        <Eye size={16} />{t("Namátková kontrola")}</button>
-                    )}
+                    {reviewing && <details className="review-tools"><summary>{t("Nástroje kontroly")}</summary><button className="button secondary" onClick={randomSample}>{t("Namátková kontrola")}</button></details>}
                   </div>
                   {reviewing && selected.length > 0 && (
                     <div className="selection-bar">
@@ -906,8 +825,8 @@ function Workspace() {
                           <th>{t("Skupina nákladů")}</th>
                           <th className="numeric">{t("Uplatněno")}</th>
                           <th>{t("Příloha")}</th>
-                          <th>{t("Organizace")}</th>
-                          <th>{t("Kontrola SFJ")}</th>
+                          <th>{t("Kontrola organizace")}</th>
+                          {showFederationDecision && <th>{t("Kontrola SFJ")}</th>}
                           <th />
                         </tr>
                       </thead>
@@ -1002,11 +921,11 @@ function Workspace() {
                                 {t(orgNames[item.orgReview])}
                               </span>
                             </td>
-                            <td>
+                            {showFederationDecision && <td>
                               <span className={`badge sfj-${item.sfjDecision}`}>
                                 {t(sfjNames[item.sfjDecision])}
                               </span>
-                            </td>
+                            </td>}
                             <td>
                               <button
                                 className={reviewing && !item.excluded ? 'button secondary review-row-action' : 'icon-button'}
@@ -1047,7 +966,6 @@ function Workspace() {
               {tab === "conditions" && (
                 <Conditions
                   contract={contract}
-                  organization={organization}
                   state={state}
                   canUpload={!!federation && !preview && !!editable}
                   upload={upload}
@@ -1087,25 +1005,16 @@ function Workspace() {
             <>
               <div className="page-heading">
                 <div>
-                  <span className="dashboard-eyebrow">{t(federation ? 'FEDERAČNÍ PRACOVIŠTĚ' : 'PRACOVIŠTĚ ORGANIZACE')}</span><h1>{t(statusFilter === 'submitted' ? federation ? 'Vyúčtování ke schválení' : 'Odesláno federaci' : statusFilter === 'approved' ? 'Schválená vyúčtování' : statusFilter === 'open' ? 'Rozpracovaná vyúčtování' : federation ? 'Přehled dotací' : 'Vaše vyúčtování')}</h1>
-                  <p>{t(statusFilter === 'submitted' ? federation ? '1. Rozhodněte o každém výdaji. 2. Schvalte celé vyúčtování. Začněte tlačítkem Zkontrolovat výdaje.' : 'Vyúčtování je u federace. Zde sledujte výsledek kontroly a případné žádosti o doplnění.' : federation ? "Mějte přehled o financování a o tom, co právě vyžaduje vaši pozornost." : "Všechny vaše smlouvy, doklady a další kroky přehledně na jednom místě.")}</p>
+                  <h1>{t("Vyúčtování")}</h1>
                 </div>
                 <div className="heading-actions">
-                  {federation && !preview && statusFilter !== 'submitted' && <button className="button primary" disabled={!state.organizations.length} onClick={()=>setModal({type:"contract",organizationId:state.organizations.length===1?state.organizations[0].id:""})}><Plus size={16}/><span>{t("Nová smlouva")}</span></button>}
-                  <span className="today-label">
-                    {t(new Intl.DateTimeFormat("cs-CZ", {
-                      day: "numeric",
-                      month: "long",
-                      year: "numeric",
-                    }).format(new Date()))}
-                  </span>
-
+                  {federation && <button className="button primary" onClick={()=>setModal(state.organizations.length ? {type:"contract",organizationId:state.organizations.length===1?state.organizations[0].id:""} : {type:"organization"})}><Plus size={16}/><span>{t(state.organizations.length ? "Nová smlouva" : "Přidat organizaci")}</span></button>}
                 </div>
               </div>
-              {!statusFilter && <Dashboard state={state} federation={!!federation} onOpen={(id) => { setPreview(false); openContract(id); }} onStatus={(value) => { setStatusFilter(value); setQuery(''); setProgram(''); setYear(''); setOrgFilter(''); }} onNewOrganization={() => { goHome('organizations'); setModal({type:'organization'}); }}/>}
-              <section className="panel contracts-panel" id="contract-register"><div className="register-heading"><div><FolderOpen size={18}/><h2>{t("Smlouvy a vyúčtování")}</h2><span>{filteredContracts.length}</span></div><p>{t("Doklady, termíny a rozhodnutí na jednom místě.")}</p></div>
+              <Dashboard state={state}/>
+              <section className="panel contracts-panel" id="contract-register">
                 <div className="contract-status-filters" aria-label={t("Stav vyúčtování")}>
-                  {[["","Všechny"],["open","Rozpracované"],["submitted","Ke kontrole"],["approved","Schválené"]].map(([value,label])=><button key={value} type="button" aria-pressed={statusFilter===value} onClick={()=>setStatusFilter(value)}><span>{t(label)}</span><span translate="no">{state.contracts.filter(c=>!value || (value==='open'?['draft','changes'].includes(c.status):c.status===value)).length}</span></button>)}
+                  {[["","Všechny"],["open","Rozpracované"],["submitted",federation ? "Ke kontrole" : "Odeslané"],["approved","Schválené"]].map(([value,label])=><button key={value} type="button" aria-pressed={statusFilter===value} onClick={()=>navigate({status:value})}><span>{t(label)}</span><span translate="no">{state.contracts.filter(c=>!value || (value==='open'?['draft','changes'].includes(c.status):c.status===value)).length}</span></button>)}
                 </div>
                 <div className="table-toolbar">
                   <div className="search-field">
@@ -1117,41 +1026,6 @@ function Workspace() {
                       onChange={(e) => setQuery(e.target.value)}
                     />
                   </div>
-                  <select
-                    aria-label={t("Rok smlouvy")}
-                    value={year}
-                    onChange={(e) => setYear(e.target.value)}
-                  >
-                    <option value="">{t("Všechny roky")}</option>
-                    {[...new Set(state.contracts.map((c) => c.year))]
-                      .sort()
-                      .reverse()
-                      .map((y) => (
-                        <option key={y} value={y}>{y}</option>
-                      ))}
-                  </select>
-                  <select
-                    aria-label={t("Program dotace")}
-                    value={program}
-                    onChange={(e) => setProgram(e.target.value)}
-                  >
-                    <option value="">{t("Všechny programy")}</option>
-                    {programs.map((p) => (
-                      <option key={p} value={p}>{t(p)}</option>
-                    ))}
-                  </select>
-                  <select
-                    aria-label={t("Organizace")}
-                    value={orgFilter}
-                    onChange={(e) => setOrgFilter(e.target.value)}
-                  >
-                    <option value="">{t("Všechny organizace")}</option>
-                    {state.organizations.map((o) => (
-                      <option key={o.id} value={o.id}>
-                        {t(o.name)}
-                      </option>
-                    ))}
-                  </select>
                 </div>
                 <div className="table-scroll">
                   <table className="contract-table">
@@ -1160,7 +1034,7 @@ function Workspace() {
                         <th>{t("Organizace a smlouva")}</th>
                         <th>{t("Program")}</th>
                         <th className="numeric">{t("Přidělená dotace")}</th>
-                        <th>{t("Vyúčtování")}</th>
+                        <th>{t("Stav")}</th>
                         <th>{t("Termín")}</th>
                         <th />
                       </tr>
@@ -1171,7 +1045,7 @@ function Workspace() {
                           (o) => o.id === c.organizationId,
                         );
                         return (
-                          <tr key={c.id} onClick={() => openContract(c.id)}>
+                          <tr key={c.id}>
                             <td>
                               <button
                                 className="organization-link"
@@ -1213,9 +1087,9 @@ function Workspace() {
                               <button
                                 className="text-link contract-action"
                                 aria-label={`${t(c.status === 'submitted' && federation ? 'Zkontrolovat výdaje' : 'Otevřít smlouvu')} ${c.number}`}
-                                onClick={() => { openContract(c.id); if (c.status === 'submitted' && federation) setPreview(false); }}
+                                onClick={() => openContract(c.id)}
                               >
-                                {t(c.status === 'approved' ? 'Zobrazit výsledek' : c.status === 'submitted' ? federation ? 'Zkontrolovat výdaje' : 'Zobrazit vyúčtování' : 'Pokračovat')}
+                                {t(c.status === 'approved' ? 'Výsledek' : c.status === 'submitted' && federation ? 'Zkontrolovat' : 'Otevřít')}
                               </button>
                             </td>
                           </tr>
@@ -1230,28 +1104,27 @@ function Workspace() {
                       text={
                         state.contracts.length
                           ? "Upravte hledání nebo filtry."
-                          : "Založte organizaci a přidejte k ní první smlouvu."
+                          : federation ? "Přidejte první smlouvu." : "Smlouvu vám přidá federace."
                       }
                     />
                   )}
                 </div>
                 <div className="table-footer">
                   <span key={`${filteredContracts.length}:${state.contracts.length}`}>{t(`${filteredContracts.length} z ${state.contracts.length} smluv`)}</span>
-                  {(query||year||program||orgFilter||statusFilter) && <button className="text-link" onClick={()=>{setQuery('');setYear('');setProgram('');setOrgFilter('');setStatusFilter('');}}>{t("Zrušit filtry")}</button>}
+                  {(query||statusFilter) && <button className="text-link" onClick={()=>goHome('contracts')}>{t("Zrušit filtry")}</button>}
                 </div>
               </section>
             </>
           ) : view === "organizations" ? (
             organization ? (
               <>
-                <button
+                {(federation || state.organizations.length > 1) && <button
                   className="back-link"
-                  onClick={() => setOrganizationId("")}
+                  onClick={() => navigate({view:"organizations"})}
                 >
-                  <ArrowLeft size={15} />{t("Všechny organizace")}</button>
+                  <ArrowLeft size={15} />{t("Všechny organizace")}</button>}
                 <div className="page-heading">
                   <div>
-                    <div className="eyebrow">{t("PROFIL ORGANIZACE")}</div>
                     <h1>{t(organization.name)}</h1>
                     <p>{t("IČO ")}{t(organization.ico)}{t(" · ")}{organization.address}
                     </p>
@@ -1334,7 +1207,6 @@ function Workspace() {
                   <div className="panel-header">
                     <div>
                       <h2>{t("Smlouvy organizace")}</h2>
-                      <p>{t("Nová smlouva se zakládá přímo v tomto profilu.")}</p>
                     </div>
                   </div>
                   {state.contracts
@@ -1374,9 +1246,7 @@ function Workspace() {
               <>
                 <div className="page-heading">
                   <div>
-                    <div className="eyebrow">{t("SPOLUPRÁCE")}</div>
                     <h1>{t("Organizace a lidé")}</h1>
-                    <p>{t(!federation ? "Profil vaší organizace, její smlouvy a přístupy členů." : demo ? "Otevřete profil organizace a přidejte její smlouvu. V ukázce můžete vyzkoušet celý postup sami." : "Každá organizace má vlastní smlouvy a členy. Otevřete profil pro přidání smlouvy nebo pozvání správce klubu.")}</p>
                   </div>
                   {federation && !preview && (
                     <div className="heading-actions">
@@ -1400,7 +1270,7 @@ function Workspace() {
                     <button
                       key={o.id}
                       className="organization-card panel"
-                      onClick={() => setOrganizationId(o.id)}
+                      onClick={() => openOrganization(o.id)}
                     >
                       <div className="organization-card-top">
                         <span className="organization-avatar large">
@@ -1430,18 +1300,13 @@ function Workspace() {
             <>
               <div className="page-heading">
                 <div>
-                  <div className="eyebrow">{t("AUDITNÍ STOPA")}</div>
                   <h1>{t("Historie činností")}</h1>
-                  <p>{t("Kdo, kdy a co změnil. Záznamy se uchovávají na serveru.")}</p>
                 </div>
               </div>
               <Audit events={state.audit} />
             </>
           )}
-          <footer className="page-footer no-print">
-            <span translate="no">{t("Javor / Dotace")}</span>
-            {demo&&<span>{t("Zkušební prostředí · fiktivní data")}</span>}
-          </footer>
+
         </main>
       </div>
       {toast && (
@@ -1478,7 +1343,7 @@ function Workspace() {
                   : modal.type === "submit"
                     ? "Odeslat vyúčtování"
                     : modal.type === "approve"
-                      ? "Krok 2 · Schválit vyúčtování"
+                      ? "Schválit vyúčtování"
                       : modal.type === "return"
                         ? "Vrátit vyúčtování"
                         : modal.type === "invite"
@@ -1499,7 +1364,7 @@ function Workspace() {
               busy={busy}
               onSave={(o) =>
                 mutate<{id: string}>("saveOrganization", { organization: o }).then(({id}) => {
-                  setModal(null); goHome("organizations"); setOrganizationId(id);
+                  setModal(null); openOrganization(id);
                 })
               }
             />
@@ -1571,7 +1436,7 @@ function Workspace() {
                     declaration: true,
                   },
                   "Vyúčtování bylo odeslané SFJ.",
-                ).then(() => { setModal(null); setTab('items'); if (demo) setPreview(false); })
+                ).then(() => { setModal(null); showTab('items'); if (demo) setPreview(false); })
               }
             />
           )}
@@ -1590,7 +1455,7 @@ function Workspace() {
                     reduction,
                   },
                   "Kontrola byla uzavřena.",
-                ).then(() => { setModal(null); setTab('summary'); })
+                ).then(() => { setModal(null); showTab('summary'); })
               }
             />
           )}
@@ -1654,67 +1519,25 @@ function Workspace() {
   );
 }
 
-function NextStep({ contract, items, canReview, canSubmit, onAdd, onOpen, onSubmit, onApprove, onSummary }: {
-  contract: Contract;
-  items: Item[];
-  canReview: boolean;
-  canSubmit: boolean;
-  onAdd: () => void;
-  onOpen: (item: Item) => void;
-  onSubmit: () => void;
-  onApprove: () => void;
-  onSummary: () => void;
+function NextStep({ contract, items, canReview, canSubmit, onOpen, onSubmit, onApprove }: {
+  contract: Contract; items: Item[]; canReview: boolean; canSubmit: boolean;
+  onOpen: (item: Item) => void; onSubmit: () => void; onApprove: () => void;
 }) {
-  const { t } = useLanguage();
-  const active = items.filter(item => !item.excluded);
-  const unfinished = active.find(item => submissionErrors(contract, [item]).length > 0);
-  const pending = active.find(item => item.sfjDecision === 'pending' || item.sfjDecision === 'supplement');
-  const progress = reviewProgress(items);
-  if (canReview && contract.status === 'submitted') return <section className="review-workflow no-print" aria-label={t('Postup schválení')}>
-    <div className={`review-stage ${progress.ready ? 'complete' : 'current'}`}>
-      <span className="review-stage-number">{progress.ready ? <Check size={18}/> : '1'}</span>
-      <div><h2>{t('Rozhodněte o výdajích')}</h2><p><strong>{progress.decided.length} / {progress.active.length}</strong> {t('výdajů posouzeno')}</p>
-        <p>{t(progress.waiting.length ? 'Vyžádaná vysvětlení brání schválení. Otevřete výdaj nebo vraťte vyúčtování k opravě.' : progress.ready ? 'Všechna rozhodnutí jsou uložená. Pokračujte ke schválení.' : 'Porovnejte každý výdaj s originálem a přijměte jej, zamítněte nebo vyžádejte vysvětlení.')}</p>
-      </div>
-      {progress.next && <button className="button primary" onClick={() => onOpen(progress.next!)}>{t(progress.pending.length ? 'Posoudit další výdaj' : 'Otevřít nevyřešený výdaj')}<ArrowRight size={16}/></button>}
-    </div>
-    <div className={`review-stage ${progress.ready ? 'current' : ''}`}>
-      <span className="review-stage-number">2</span><div><h2>{t('Schvalte celé vyúčtování')}</h2><p>{t(progress.ready ? 'Doplňte závěr a potvrďte schválení. Poté stáhnete výsledné PDF.' : 'Tento krok se zpřístupní po rozhodnutí o všech výdajích.')}</p></div>
-      <button className={`button ${progress.ready ? 'primary' : 'secondary'}`} disabled={!progress.ready} onClick={onApprove}>{t('Schválit vyúčtování')}<ArrowRight size={16}/></button>
-    </div>
+  const {t}=useLanguage();
+  const progress=reviewProgress(items);
+  if(canReview) return <section className="workflow-action no-print" aria-label={t('Další krok')}>
+    <span><strong>{progress.decided.length} / {progress.active.length}</strong> {t('výdajů posouzeno')}</span>
+    {progress.ready ? <button className="button primary" onClick={onApprove}>{t('Schválit vyúčtování')}<ArrowRight size={16}/></button>
+      : progress.next && <button className="button primary" onClick={()=>onOpen(progress.next!)}>{t(progress.pending.length ? 'Posoudit další výdaj' : 'Zobrazit žádost o doplnění')}<ArrowRight size={16}/></button>}
   </section>;
-  let title = 'Přidejte první výdaj';
-  let detail = 'Nahrajte fakturu nebo účtenku. Údaje se doplní automaticky a potom je zkontrolujete.';
-  let label = 'Nahrát první doklad';
-  let action = onAdd;
-  if (contract.status === 'approved') {
-    title = 'Vyúčtování je schválené';
-    detail = 'V souhrnu najdete výsledek kontroly a stáhnete závěrečnou zprávu v PDF.';
-    label = 'Otevřít souhrn a PDF'; action = onSummary;
-  } else if (contract.status === 'submitted') {
-    title = canReview ? 'Posuďte předložené výdaje' : 'Vyúčtování čeká na kontrolu federace';
-    detail = canReview ? 'Otevřete výdaj, porovnejte jej s přílohou a přijměte jej, zamítněte nebo požádejte o doplnění.' : 'Průběh a případné žádosti o doplnění najdete u jednotlivých výdajů.';
-    label = canReview ? pending ? 'Otevřít další výdaj ke kontrole' : 'Dokončit kontrolu' : 'Zobrazit souhrn';
-    action = canReview ? pending ? () => onOpen(pending) : onApprove : onSummary;
-    if (canReview && !pending) {
-      title = 'Všechny výdaje jsou posouzené';
-      detail = 'Zbývá potvrdit závěr kontroly. Poté si můžete stáhnout výslednou zprávu.';
-    }
-  } else if (unfinished) {
-    title = 'Zkontrolujte údaje výdajů';
-    detail = 'Porovnejte údaje s dokladem, vysvětlete případná upozornění a potvrďte kontrolu. Pak můžete vyúčtování odeslat.';
-    label = 'Otevřít další výdaj'; action = () => onOpen(unfinished);
-  } else if (active.length) {
-    const errors = submissionErrors(contract, items);
-    title = errors.length ? 'Před odesláním upravte vyúčtování' : 'Výdaje jsou zkontrolované';
-    detail = errors.length ? errors.join(' ') : canSubmit ? 'Pokud jste přidali všechny výdaje, odešlete je federaci ke kontrole.' : 'Správce vaší organizace nyní může vyúčtování odeslat federaci.';
-    label = errors.length ? 'Otevřít výdaj' : canSubmit ? 'Zkontrolovat a odeslat' : 'Zobrazit souhrn';
-    action = errors.length ? () => onOpen(active[0]) : canSubmit ? onSubmit : onSummary;
-  }
-  return <section className="next-step no-print" aria-label={t("Další krok")}>
-    <div><h2>{t(title)}</h2><p>{t(detail)}</p></div>
-    <button type="button" className="button primary" onClick={action}>{t(label)}<ArrowRight size={16}/></button>
-  </section>;
+  const active=items.filter(item=>!item.excluded);
+  const reply=active.find(item=>item.sfjDecision==='supplement');
+  if(contract.status==='submitted') return reply ? <section className="workflow-action no-print"><span>{t('Federace žádá doplnění')}</span><button className="button primary" onClick={()=>onOpen(reply)}>{t('Doplnit vyúčtování')}<ArrowRight size={16}/></button></section> : null;
+  if(contract.status==='approved'||!active.length)return null;
+  const unfinished=active.filter(item=>submissionErrors(contract,[item]).length>0);
+  if(unfinished.length) return <section className="workflow-action no-print"><span>{t('Doklady ke kontrole')}: <strong>{unfinished.length}</strong></span><button className="button secondary" onClick={()=>onOpen(unfinished[0])}>{t('Zkontrolovat')}<ArrowRight size={16}/></button></section>;
+  const errors=submissionErrors(contract,items);
+  return <section className="workflow-action no-print"><span>{errors.length ? t(errors[0]) : t('Připraveno k odeslání')}</span>{canSubmit && <button className="button primary" disabled={!!errors.length} onClick={onSubmit}>{t('Odeslat federaci')}<ArrowRight size={16}/></button>}</section>;
 }
 
 function Metric({
@@ -1944,7 +1767,6 @@ function OrganizationForm({
         }).catch((x) => setError(x.message));
       }}
     >
-      <p className="form-intro">{t("Základní údaje příjemce dotace. Organizace může mít dva statutární zástupce.")}</p>
       <FormError error={error} />
       <div className="organization-onboarding">
         <label className="button secondary upload-button">
@@ -2068,8 +1890,7 @@ function OrganizationForm({
           />
         </Field>
       </div>
-      <div className="inline-banner">
-        <ShieldCheck size={16} />{t("Údaje ověřte podle podepsané smlouvy. Zdrojové dokumenty připojíte ke smlouvě v profilu organizace.")}</div>
+
       <div className="form-footer">
         <button className="button primary" type="submit" disabled={busy || ocrBusy}>
           <span aria-hidden="true">{busy ? <Loader2 size={16} className="spin" /> : <Check size={16} />}</span>
@@ -2222,7 +2043,7 @@ function ContractForm({
       </Field>
       <div className="notice warning">
         <TriangleAlert size={17} />
-        <span>{t("Podklady 2025 vyžadují bezhotovostní úhrady; pozdější domluva připouští hotovost. Nastavená hranice je kontrolní upozornění, ne potvrzení způsobilosti.")}</span>
+        <span>{t("Limit hotovosti musí potvrdit federace.")}</span>
       </div>
       </details>
       <div className="form-footer">
@@ -2267,6 +2088,7 @@ function ItemForm({
     try{const saved=JSON.parse(sessionStorage.getItem(draftKey)||'null');if(saved&&saved.version===item.version&&Date.now()-saved.at<8*3600000&&saved.value?.contractId===contract.id&&Array.isArray(saved.value.fileIds))return {...initial,...saved.value};}catch{}
     return initial;
   });
+  const [noteOpen,setNoteOpen]=useState(Boolean(draft.comment));
   useEffect(()=>{try{if(sessionStorage.getItem(draftKey))setRestored(true);}catch{}},[draftKey]);
   useEffect(()=>{if(!editable)return;try{sessionStorage.setItem(draftKey,JSON.stringify({version:item.version,at:Date.now(),value:draft,manual:Array.from(editedFields.current)}));}catch{}},[draft,draftKey,editable,item.version]);
   const editedFields = useRef(new Set<string>((()=>{try{const saved=JSON.parse(sessionStorage.getItem(draftKey)||'null');return Array.isArray(saved?.manual)?saved.manual:[];}catch{return [];}})()));
@@ -2275,7 +2097,7 @@ function ItemForm({
   const [error, setError] = useState("");
   const [uploading, setUploading] = useState(false);
   const [newFiles, setNewFiles] = useState<StoredFile[]>([]);
-  const [selectedFile, setSelectedFile] = useState(item.fileIds[0] || "");
+  const [selectedFile, setSelectedFile] = useState(draft.fileIds[0] || "");
   const [extractFile, setExtractFile] = useState<File | null>(null);
   const [readingSource, setReadingSource] = useState(false);
   const sourceFiles = useRef(new Map<string, File>());
@@ -2374,9 +2196,9 @@ function ItemForm({
     });
   };
   return (
-    <div className="item-editor">
+    <div className={`item-editor ${editable && !draft.fileIds.length ? "upload-first" : ""}`}>
       <div className="item-document">
-        <div className="document-bar">
+        {file?.type.startsWith("image/") && <div className="document-bar">
           <span>
             <Paperclip size={15} />{t("Originál dokladu")}</span>
           {file && (
@@ -2388,24 +2210,7 @@ function ItemForm({
             >{t("Otevřít ")}<ArrowUpRight size={14} />
             </a>
           )}
-        </div>
-        {draft.fileIds.length > 0 && (
-          <select
-            className="file-select"
-            aria-label={t("Zobrazit přílohu")}
-            value={selectedFile}
-            onChange={(e) => {
-              setSelectedFile(e.target.value);
-              setExtractFile(null);
-            }}
-          >
-            {draft.fileIds.map((id) => (
-              <option key={id} value={id}>
-                {t(allFiles.find((f) => f.id === id)?.name || id)}
-              </option>
-            ))}
-          </select>
-        )}
+        </div>}
         {extractFile && editable && (
           <div className="extraction-wrap">
             <Extraction file={extractFile} onExtract={applyExtraction} onBusyChange={setExtractionBusy} />
@@ -2421,14 +2226,10 @@ function ItemForm({
             ) : (
               <DocumentPreview file={file} />
             )}
-            <div className="file-meta">
-              <FileText size={14} />
-              <span translate="no" key={file.id}>{t(file.name)}</span>
-              <span translate="no">{t(`${Math.ceil(file.size / 1024)} kB`)}</span>
-            </div>
+
           </div>
         ) : (
-          <div className="document-empty"><h3>{t("Přiložte doklad")}</h3><p>{t("Údaje ze souboru se vyplní automaticky.")}</p></div>
+          null
         )}
         {(editable ||
           (item.sfjDecision === "supplement" &&
@@ -2451,6 +2252,7 @@ function ItemForm({
             />
           </label>
         )}
+        {!draft.fileIds.length && <FormError error={error} />}
         {file && editable && !extractFile && (
           <button
             type="button"
@@ -2467,7 +2269,7 @@ function ItemForm({
             {draft.fileIds.map((id) => (
               <div key={id}>
                 <Paperclip size={13} />
-                <span>{t(allFiles.find((f) => f.id === id)?.name || id)}</span>
+                <button type="button" className={`attachment-name ${selectedFile===id?"selected":""}`} onClick={()=>setSelectedFile(id)} aria-pressed={selectedFile===id}>{t(allFiles.find((f) => f.id === id)?.name || id)}</button>
                 <button
                   type="button"
                   className="icon-button"
@@ -2490,8 +2292,8 @@ function ItemForm({
           </div>
         )}
       </div>
-      <div className="item-entry"><div className="item-fields">
-        {editable&&<p className="draft-status" role="status">{t(restored?'Rozepsaný doklad byl obnoven. Zkontrolujte jej a uložte.':'Rozepsaný doklad se uchovává v této kartě po dobu 8 hodin. Do evidence jej zapíše až Uložit doklad.')}</p>}
+      {(!editable || draft.fileIds.length > 0) && <div className="item-entry"><div className="item-fields">
+        {editable && restored && <p className="draft-status" role="status">{t("Rozepsaný doklad obnoven.")}</p>}
         <FormError error={error} />
         {duplicate && <div className="notice warning" role="status"><div><strong>{t("Doklad už je v evidenci")}</strong><p>{t(`${duplicate.number} · ${duplicate.supplier}. Nalezené údaje jsou vyplněné; uložený doklad můžete otevřít bez vytvoření kopie.`)}</p><button type="button" className="button secondary" onClick={()=>onOpenExisting(duplicate)}><span>{t("Otevřít uložený doklad")}</span></button></div></div>}
         <form id="receipt-form"
@@ -2504,10 +2306,10 @@ function ItemForm({
           }}
         >
           <div className="item-section-title">
-            <span className="step-circle">{t("1")}</span>
+
             <div>
               <h3>{t("Údaje dokladu")}</h3>
-              <p>{t("Porovnejte údaje s přiloženým dokladem.")}</p>
+
             </div>
           </div>
           <fieldset disabled={!editable || busy}>
@@ -2579,6 +2381,7 @@ function ItemForm({
                     setDraft((old) => ({
                       ...old,
                       amount,
+                      orgReview: "unchecked",
                       claimed:
                         old.claimed === old.amount ? amount : old.claimed,
                     }));
@@ -2625,14 +2428,7 @@ function ItemForm({
               </Field>
             )}
           </fieldset>
-          <div className="item-section-title">
-            <span className="step-circle">{t("2")}</span>
-            <div>
-              <h3>{t("Potvrďte kontrolu údajů")}</h3>
-              <p>{t("Porovnejte částky, dodavatele a datum platby s původním dokladem.")}</p>
-            </div>
-          </div>
-          {!showFindings ? <p className="form-intro">{t("Nahrajte doklad. Nalezené údaje doplníme do formuláře.")}</p> : issues.length > 0 ? (
+          {!showFindings ? null : issues.length > 0 ? (
             <div className="finding-list">
               {issues.map((f) => (
                 <div className={`finding ${f.severity}`} key={f.code}>
@@ -2641,18 +2437,9 @@ function ItemForm({
                 </div>
               ))}
             </div>
-          ) : (
-            <div className="finding success">
-              <CircleCheck size={16} />
-              <span>
-                {t(draft.excluded
-                  ? "Položka je vyřazená; částka se nezapočítává."
-                  : "Povinné údaje jsou vyplněné.")}
-              </span>
-            </div>
-          )}
+          ) : null}
           <fieldset disabled={!editable || busy}>
-            <Field
+            {needsComment ? <Field
               label={
                 needsComment
                   ? "Vysvětlení upozornění (povinné pro kontrolu)"
@@ -2660,16 +2447,16 @@ function ItemForm({
               }
             >
               <textarea
-                rows={3}
+                rows={2}
                 value={draft.comment}
                 onChange={(e) => change("comment", e.target.value)}
                 placeholder={t("Uveďte souvislost, důvod částečného uplatnění nebo jiné vysvětlení.")}
               />
-            </Field>
+            </Field> : <details className="optional-note" open={noteOpen} onToggle={event=>setNoteOpen(event.currentTarget.open)}><summary>{t("Přidat poznámku")}</summary><Field label="Komentář organizace"><textarea rows={2} value={draft.comment} onChange={e=>change("comment",e.target.value)}/></Field></details>}
             <label className="checkbox-label review-confirmation">
               <input type="checkbox" checked={draft.orgReview !== 'unchecked'}
                 onChange={e => change('orgReview', e.target.checked ? (needsComment ? 'commented' : 'checked') : 'unchecked')} />
-              <span>{t("Porovnal/a jsem údaje s dokladem a vysvětlil/a případná upozornění.")}</span>
+              <span>{t("Údaje odpovídají dokladu.")}</span>
             </label>
             <label className="checkbox-label">
               <input
@@ -2678,15 +2465,15 @@ function ItemForm({
                 onChange={(e) => change("excluded", e.target.checked)}
               />
               <span>{t("Vyřadit z vyúčtování")}{t(" ")}
-                <small>{t("Doklad zůstane v evidenci, částka se nezapočítá.")}</small>
+
               </span>
             </label>
           </fieldset>
         </form>
-        {!!item.id && (
+        {!!item.id && (item.sfjDecision !== "pending" || contract.status === "submitted" || contract.status === "approved") && (
           <>
             <div className="item-section-title">
-              <span className="step-circle">{t("3")}</span>
+
               <div>
                 <h3>{t("Posouzení SFJ")}</h3>
                 <p>
@@ -2788,7 +2575,7 @@ function ItemForm({
                         {t(date(a.at))}{t(" ·")}{t(a.actor)}
                       </small>
                       <strong>{t(actionLabel(a.action))}</strong>
-                      <p>{t(a.detail)}</p>
+                      <p>{t(a.detail.replace(/ · \d+ B · SHA-256 [a-f0-9]{64}/i, ""))}</p>
                     </div>
                   ))}
               </details>
@@ -2796,15 +2583,14 @@ function ItemForm({
           </>
         )}
       </div>
-      {editable && <div className="item-savebar"><div><strong>{t(duplicate ? 'Doklad už je v evidenci' : extractionBusy || readingSource ? 'Načítání dokladu…' : issues.some(i=>i.severity==='error') ? 'Doplňte povinné údaje' : 'Zkontrolujte údaje a uložte')}</strong><small>{t("Změny potvrdíte uložením.")}</small></div><button className="button primary" type="submit" form="receipt-form" disabled={busy || uploading || readingSource || extractionBusy || !!duplicate}><span aria-hidden="true">{busy ? <Loader2 size={16} className="spin"/> : <Check size={16}/>}</span><span>{t(busy?'Ukládám…':'Uložit doklad')}</span></button></div>}
-      </div>
+      {editable && <div className="item-savebar"><div><strong>{t(duplicate ? 'Doklad už je v evidenci' : extractionBusy || readingSource ? 'Načítání dokladu…' : issues.some(i=>i.severity==='error') ? 'Doplňte povinné údaje' : '')}</strong></div><button className="button primary" type="submit" form="receipt-form" disabled={busy || uploading || readingSource || extractionBusy || !!duplicate}><span aria-hidden="true">{busy ? <Loader2 size={16} className="spin"/> : <Check size={16}/>}</span><span>{t(busy?'Ukládám…':'Uložit doklad')}</span></button></div>}
+      </div>}
     </div>
   );
 }
 
 function Conditions({
   contract,
-  organization,
   state,
   canUpload,
   upload,
@@ -2812,7 +2598,6 @@ function Conditions({
   setError,
 }: {
   contract: Contract;
-  organization: Organization;
   state: AppState;
   canUpload: boolean;
   upload: (f: File, c: Contract, k: StoredFile["kind"]) => Promise<StoredFile>;
@@ -2839,8 +2624,7 @@ function Conditions({
           <ShieldCheck size={21} />
           <div>
             <h2>{t("Podmínky smlouvy")}</h2>
-            <p>{t("Platí pro ")}{t(contract.number)}{t(" ·")}{t(organization.name)}
-            </p>
+
           </div>
         </div>
         <dl className="detail-list">
@@ -2865,17 +2649,17 @@ function Conditions({
           {t(contract.conditions ||
             "Konkrétní podmínky dosud nebyly doplněné. Vycházejte z podepsané smlouvy a přiložených pokynů.")}
         </div>
-        <div className="notice warning">
+        {contract.cashLimit === null && <div className="notice warning">
           <TriangleAlert size={17} />
           <div>
             <strong>{t("Hotovost vyžaduje ověření")}</strong>
-            <p>{t("Podklady 2025 vyžadují bezhotovostní úhradu. Pozdější domluva připouští drobné hotovostní výdaje; konečné pravidlo musí potvrdit SFJ.")}</p>
+            <p>{t("Limit hotovosti musí potvrdit federace.")}</p>
           </div>
-        </div>
+        </div>}
       </section>
       <section className="panel padded">
         <h2>{t("Dokumenty a zdroje pravidel")}</h2>
-        <p className="muted">{t("Vždy pracujte s konkrétní podepsanou smlouvou a platnými pokyny.")}</p>
+
         <div className="source-files">
           {files.map((f) => (
             <a
@@ -2936,21 +2720,6 @@ function Conditions({
             </label>
           </div>
         )}
-        <div className="reference-sources">
-          <h3>{t("Podklady dodané v zadání")}</h3>
-          <p>{t("Adaptované výňatky z roku 2025. Nejsou aktuálními právními pokyny ani náhradou smlouvy.")}</p>
-          {["organizace", "talent", "reprezentace"].map((s) => (
-            <a
-              href={`/reference/prehled-nakladu-${s}-2025.txt`}
-              key={s}
-              target="_blank"
-              rel="noreferrer"
-            >
-              <FileText size={14} />{t("Přehled nákladů · ")}{t(s)}
-              <ArrowUpRight size={13} />
-            </a>
-          ))}
-        </div>
       </section>
     </div>
   );
@@ -3002,7 +2771,6 @@ function Summary({
       <div className="summary-toolbar no-print">
         <div>
           <h2>{t("Souhrn vyúčtování")}</h2>
-          <p>{t("Podklad pro předání, archivaci a stažení PDF.")}</p>
         </div>
         <div className="row-actions">
           <button className="button secondary" onClick={exportCsv}>
@@ -3168,7 +2936,6 @@ function Audit({ events }: { events: AuditEvent[] }) {
   const { t } = useLanguage();
   return (
     <section className="panel padded audit-panel">
-      <h2>{t("Průběh a uložené změny")}</h2>
       {events.length ? (
         <div className="timeline">
           {events.map((a) => (
@@ -3179,7 +2946,7 @@ function Audit({ events }: { events: AuditEvent[] }) {
                   <strong>{t(actionLabel(a.action))}</strong>
                   <time>{t(new Date(a.at).toLocaleString("cs-CZ"))}</time>
                 </div>
-                <p>{t(a.detail)}</p>
+                <p>{t(a.detail.replace(/ · \d+ B · SHA-256 [a-f0-9]{64}/i, ""))}</p>
                 <small>{t(a.actor)}</small>
               </div>
             </article>
@@ -3218,7 +2985,7 @@ function SubmitForm({
         void onSubmit().catch((x) => setError(x.message));
       }}
     >
-      <p className="form-intro">{t("Odesláním předáte vyúčtování do kontroly SFJ. Úpravy dokladů budou uzamčené, dokud SFJ vyúčtování nevrátí.")}</p>
+      <p className="form-intro">{t("Po odeslání lze doklady upravit až po vrácení federací.")}</p>
       <FormError error={error} />
       {errors.length ? (
         <div className="submission-errors">
@@ -3232,7 +2999,7 @@ function SubmitForm({
       ) : (
         <div className="notice success">
           <CircleCheck size={19} />
-          <span>{t("Formální kontrola je připravená.")}{t(" ")}
+          <span>
             {items.filter((i) => !i.excluded).length}{t(" dokladů ·")}{t(" ")}
             {t(money(total(items)))}
           </span>
@@ -3287,7 +3054,7 @@ function ApprovalForm({
       }}
     >
       <FormError error={error} />
-      <div className="approval-intro"><div className="review-kicker">{t('KROK 2 ZE 2 · SCHVÁLENÍ')}</div><h3>{t('Zbývá potvrdit celé vyúčtování')}</h3><p>{t('Rozhodnutí o výdajích jsou uložená. Schválením uzamknete vyúčtování a otevřete výsledný souhrn.')}</p></div>
+
       <div className="approval-counts"><span><strong>{progress.active.filter(item => item.sfjDecision === 'accepted').length}</strong> {t('přijatých výdajů')}</span><span><strong>{progress.active.filter(item => item.sfjDecision === 'rejected').length}</strong> {t('zamítnutých výdajů')}</span></div>
       {pending.length > 0 && (
         <div className="notice warning">
@@ -3314,16 +3081,16 @@ function ApprovalForm({
           onChange={(e) => setReduction(Number(e.target.value))}
         />
       </Field>
-      <Field label="Závěr kontroly" hint="Napište krátký závěr. Potom můžete schválit vyúčtování.">
+      <Field label="Závěr kontroly">
         <textarea
           required
-          rows={5}
+          rows={3}
           value={conclusion}
           onChange={(e) => setConclusion(e.target.value)}
           placeholder={t("Uveďte závěr formální kontroly a případné odůvodnění krácení.")}
         />
       </Field>
-      <p className="approval-next">{t('Po schválení: Souhrn → Stáhnout PDF. Schválení v této aplikaci neprovádí platbu.')}</p>
+
       <div className="form-footer">
         <button
           className="button primary"
@@ -3411,7 +3178,6 @@ function InviteForm({
           .catch((x) => setError(x.message));
       }}
     >
-      <p className="form-intro">{t("Vytvořte osobní odkaz pro přihlášení člena. Pozvánka je vázaná na e-mail, má omezenou platnost a lze ji přijmout jednou.")}</p>
       <FormError error={error} />
       <Field label="E-mail pozvaného">
         <input
@@ -3515,15 +3281,6 @@ function Adviser({
   };
   return (
     <div className="adviser-body">
-      <div className="adviser-intro">
-        <span>
-          <BookOpen size={25} />
-        </span>
-        <div>
-          <h3>{t("Nápověda ke smlouvě")}</h3>
-          <p>{t("Vyberte smlouvu a položte otázku k jejím podmínkám. Odpověď obsahuje dostupné zdroje.")}</p>
-        </div>
-      </div>
       <Field label="Smlouva">
         <select
           value={id}
@@ -3541,7 +3298,6 @@ function Adviser({
       </Field>
       <div className="suggested-questions">
         {[
-          "Mohu uplatnit kávovar do klubovny?",
           "Jak vysvětlit částečné uplatnění dokladu?",
           "Mohu použít hotovost?",
         ].map((q) => (

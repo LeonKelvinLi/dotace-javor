@@ -35,7 +35,13 @@ try {
   assert.equal((await request("/api/app")).status, 401);
   assert.equal((await request("/api/files?id=file-item-balls")).status, 401);
   const landing = await (await request("/login")).text();
-  for (const account of demoAccounts) assert.ok(landing.includes(account.email));
+  const entryForms = [...landing.matchAll(/<form method="post" action="\/auth\/login">([\s\S]*?)<\/form>/g)].map(([, html]) => new URLSearchParams([...html.matchAll(/<input type="hidden" name="([^"]+)" value="([^"]*)">/g)].map(([, name, value]) => [name, value])));
+  assert.equal(entryForms.length, 2);
+  const enterDemo = account => {
+    const body = entryForms.find(form => form.get('email') === account.email);
+    assert.ok(body, 'Each role button must submit a complete login form');
+    return fetch(origin + '/auth/login', {method:'POST', redirect:'manual', headers:{Origin:origin}, body});
+  };
   assert.ok(landing.includes('data-lang="en"'));
   assert.ok(landing.includes('lang="cs"'));
   assert.equal((await login(demoAccounts[1], "incorrect")).status, 400);
@@ -44,14 +50,14 @@ try {
   console.log("PASS: fresh visitors start at login; originals and API require a valid session");
 
   // Organization can be the first visitor; bootstrap must not make it federation.
-  const orgLogin = await login(demoAccounts[1]);
+  const orgLogin = await enterDemo(demoAccounts[1]);
   assert.equal(orgLogin.status, 303);
   const organization = orgLogin.headers.get("set-cookie").split(";")[0];
   const orgState = await state(organization);
   assert.equal(orgState.membership.role, "org_admin");
   assert.deepEqual(orgState.organizations.map(o => o.id), ["org-haj"]);
   assert.ok(orgState.contracts.every(c => c.organizationId === "org-haj"));
-  const fedLogin = await login(demoAccounts[0]);
+  const fedLogin = await enterDemo(demoAccounts[0]);
   const federation = fedLogin.headers.get("set-cookie").split(";")[0];
   assert.notEqual(federation, organization);
   const fedState = await state(federation);

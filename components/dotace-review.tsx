@@ -1,87 +1,67 @@
-"use client";
+'use client';
 
-import { useState } from 'react';
-import { ArrowRight, Check, FileText, Loader2, MessageSquare, TriangleAlert, X } from 'lucide-react';
+import {useState} from 'react';
+import {Check, FileText, Loader2, MessageSquare, TriangleAlert, X} from 'lucide-react';
 import DocumentPreview from './dotace-document';
-import { useLanguage } from './language';
-import { categoryLabels, findings, money, type Contract, type Item, type StoredFile } from '@/lib/model';
-import { reviewProgress } from '@/lib/review';
+import {useLanguage} from './language';
+import {categoryLabels, findings, money, type Contract, type Item, type StoredFile} from '@/lib/model';
+import {reviewProgress} from '@/lib/review';
 
-type Decision = Exclude<Item['sfjDecision'], 'pending'>;
-export default function ReviewExpense({ item, contract, items, files, busy, onDecision }: {
-  item: Item; contract: Contract; items: Item[]; files: StoredFile[]; busy: boolean;
-  onDecision: (decision: Decision, reason: string) => Promise<unknown>;
+type Decision=Exclude<Item['sfjDecision'],'pending'>;
+export default function ReviewExpense({item,contract,items,files,busy,onDecision}:{
+  item:Item; contract:Contract; items:Item[]; files:StoredFile[]; busy:boolean;
+  onDecision:(decision:Decision,reason:string)=>Promise<unknown>;
 }) {
-  const { t } = useLanguage();
-  const [selectedFile, setSelectedFile] = useState(item.fileIds[0] || '');
-  const [decision, setDecision] = useState<Decision | ''>(item.sfjDecision === 'pending' ? '' : item.sfjDecision);
-  const [reason, setReason] = useState(item.sfjReason);
-  const [error, setError] = useState('');
-  const file = files.find(file => file.id === selectedFile);
-  const issues = findings(item, contract);
-  const progress = reviewProgress(items);
-  const anotherPending = progress.pending.some(next => next.id !== item.id);
-  const anotherWaiting = progress.waiting.some(next => next.id !== item.id);
-  const canFinish = decision && decision !== 'supplement' && !anotherPending && !anotherWaiting;
-  const valid = decision && (decision === 'accepted' || reason.trim());
-  const choices = [
-    { value: 'accepted', title: 'Přijmout výdaj', detail: 'Uznat uplatněnou částku.', Icon: Check },
-    { value: 'rejected', title: 'Zamítnout výdaj', detail: 'Neuznat částku a uvést důvod.', Icon: X },
-    { value: 'supplement', title: 'Vyžádat vysvětlení', detail: 'Uvést, co ještě potřebujete ověřit.', Icon: MessageSquare },
-  ] as const;
+  const {t}=useLanguage();
+  const [selectedFile,setSelectedFile]=useState(item.fileIds[0]||'');
+  const [decision,setDecision]=useState<''|'rejected'|'supplement'>('');
+  const [reason,setReason]=useState('');
+  const [error,setError]=useState('');
+  const file=files.find(file=>file.id===selectedFile);
+  const issues=findings(item,contract);
+  const progress=reviewProgress(items);
+  const save=async(value:Decision,note:string)=>{
+    if(busy)return;
+    setError('');
+    try{await onDecision(value,note);}catch(error){setError(error instanceof Error?error.message:String(error));}
+  };
+  const choose=(value:'rejected'|'supplement')=>{
+    setDecision(value);setReason(item.sfjDecision===value?item.sfjReason:'');
+  };
   return <div className="item-editor review-editor">
     <div className="item-document">
-      <div className="document-bar"><span><FileText size={16}/>{t('Originál dokladu')}</span>
-        {file && <a className="text-link" href={`/api/files?id=${encodeURIComponent(file.id)}`} target="_blank" rel="noreferrer">{t('Otevřít originál')} ↗</a>}
-      </div>
-      {item.fileIds.length > 1 && <select className="file-select" aria-label={t('Zobrazit přílohu')} value={selectedFile} onChange={event => setSelectedFile(event.target.value)}>
-        {item.fileIds.map(id => <option key={id} value={id}>{files.find(file => file.id === id)?.name || id}</option>)}
-      </select>}
-      {file ? <div className="file-preview">{file.type.startsWith('image/') ? <img src={`/api/files?id=${encodeURIComponent(file.id)}`} alt={file.name}/> : <DocumentPreview file={file}/>}</div>
-        : <div className="notice warning">{t('Chybí příloha dokladu.')}</div>}
+      {item.fileIds.length>1 && <div className="attachment-tabs" aria-label={t('Přílohy')}>{item.fileIds.map(id=><button type="button" key={id} aria-pressed={selectedFile===id} onClick={()=>setSelectedFile(id)}>{files.find(file=>file.id===id)?.name||id}</button>)}</div>}
+      {file ? <div className="file-preview">{file.type.startsWith('image/') ? <><a className="text-link" href={`/api/files?id=${encodeURIComponent(file.id)}`} target="_blank" rel="noreferrer">{t('Otevřít originál')} ↗</a><img src={`/api/files?id=${encodeURIComponent(file.id)}`} alt={file.name}/></> : <DocumentPreview file={file}/>}</div> : <div className="notice warning">{t('Chybí příloha dokladu.')}</div>}
     </div>
     <div className="item-entry">
       <div className="item-fields review-fields">
-        <div className="review-kicker">{t('KROK 1 ZE 2 · KONTROLA VÝDAJŮ')}</div>
-        <h3>{t('Rozhodněte o tomto výdaji')}</h3>
-        <p className="review-instruction">{t('Porovnejte částku a účel s originálem. Pak vyberte rozhodnutí níže.')}</p>
-        {file && <a className="text-link review-original-shortcut" href={`/api/files?id=${encodeURIComponent(file.id)}`} target="_blank" rel="noreferrer"><FileText size={15}/>{t('Otevřít originál')} ↗</a>}
-        <div className="review-amount"><div><strong>{item.supplier}</strong><span>{item.number}</span></div><div><small>{t('Uplatněno')}</small><strong>{t(money(item.claimed))}</strong></div></div>
+        {file&&<a className="text-link review-original-shortcut" href={`/api/files?id=${encodeURIComponent(file.id)}`} target="_blank" rel="noreferrer"><FileText size={15}/>{t('Otevřít originál')} ↗</a>}
+        <div className="review-amount"><strong>{item.supplier}</strong><div><small>{t('Uplatněno')}</small><strong>{t(money(item.claimed))}</strong></div></div>
         <p className="review-purpose">{item.description}</p>
         <dl className="review-facts">
-          <div><dt>{t('Částka dokladu (Kč)')}</dt><dd>{t(money(item.amount))}</dd></div>
-          <div><dt>{t('Datum úhrady')}</dt><dd>{item.date || '—'}</dd></div>
+          {item.amount!==item.claimed&&<div><dt>{t('Částka dokladu (Kč)')}</dt><dd>{t(money(item.amount))}</dd></div>}
+          <div><dt>{t('Datum úhrady')}</dt><dd>{item.date||'—'}</dd></div>
           <div><dt>{t('Skupina nákladů')}</dt><dd>{t(categoryLabels[item.category])}</dd></div>
-          <div><dt>{t('Způsob úhrady')}</dt><dd>{t(item.payment === 'cash' ? 'Hotovost' : 'Bezhotovostní platba')}</dd></div>
+          <div><dt>{t('Způsob úhrady')}</dt><dd>{t(item.payment==='cash'?'Hotovost':'Bezhotovostní platba')}</dd></div>
+          {item.supplierIco&&<div><dt>{t('IČO dodavatele')}</dt><dd>{item.supplierIco}</dd></div>}
+          {item.recipientName&&<div><dt>{t('Jméno / název odběratele')}</dt><dd>{item.recipientName}</dd></div>}
         </dl>
-        {item.comment && <div className="review-comment"><strong>{t('Komentář organizace')}</strong><p>{item.comment}</p></div>}
-        {issues.length > 0 && <div className="review-findings">{issues.map(issue => <p key={issue.code}><TriangleAlert size={15}/><span>{t(issue.message)}</span></p>)}</div>}
-        <form id="review-decision" onSubmit={event => {
-          event.preventDefault(); if (!valid || busy || !decision) return;
-          setError(''); void onDecision(decision, reason).catch(error => setError(error.message));
-        }}>
-          <fieldset className="decision-options" disabled={busy}>
-            <legend>{t('Vaše rozhodnutí')}</legend>
-            {choices.map(({value, title, detail, Icon}) => <label key={value} className={`decision-option ${decision === value ? 'selected' : ''}`}>
-              <input type="radio" name="review-decision" value={value} checked={decision === value} onChange={() => { setDecision(value); setReason(''); }} required/>
-              <Icon size={18}/><span><strong>{t(title)}</strong><small>{t(detail)}</small></span>
-            </label>)}
-          </fieldset>
-          {decision && <label className="field"><span>{t(decision === 'accepted' ? 'Poznámka SFJ (volitelné)' : decision === 'rejected' ? 'Proč výdaj zamítáte?' : 'Co má organizace doplnit?')}</span>
-            <textarea rows={2} value={reason} required={decision !== 'accepted'} onChange={event => setReason(event.target.value)} disabled={busy}/>
-          </label>}
-          {error && <div className="notice error" role="alert">{t(error)}</div>}
+        {item.comment&&<div className="review-comment"><strong>{t('Komentář organizace')}</strong><p>{item.comment}</p></div>}
+        {item.sfjReason&&!decision&&<div className="review-comment"><strong>{t('Vyjádření SFJ')}</strong><p>{item.sfjReason}</p></div>}
+        {issues.length>0&&<div className="review-findings">{issues.map(issue=><p key={issue.code}><TriangleAlert size={15}/><span>{t(issue.message)}</span></p>)}</div>}
+        <form id="review-decision" onSubmit={event=>{event.preventDefault();if(decision&&reason.trim())void save(decision,reason);}}>
+          <div className="decision-actions">
+            <button className="button primary" type="button" disabled={busy} onClick={()=>void save('accepted',item.sfjDecision==='accepted'?item.sfjReason:'')}><Check size={17}/>{t('Přijmout výdaj')}</button>
+            <button className="button secondary" type="button" disabled={busy} aria-pressed={decision==='rejected'} onClick={()=>choose('rejected')}><X size={17}/>{t('Zamítnout výdaj')}</button>
+            <button className="button secondary" type="button" disabled={busy} aria-pressed={decision==='supplement'} onClick={()=>choose('supplement')}><MessageSquare size={17}/>{t('Vyžádat vysvětlení')}</button>
+          </div>
+          {decision&&<label className="field"><span>{t(decision==='rejected'?'Proč výdaj zamítáte?':'Co má organizace doplnit?')}</span><textarea autoFocus rows={3} required value={reason} onChange={event=>setReason(event.target.value)} disabled={busy}/></label>}
+          {error&&<div className="notice error" role="alert">{t(error)}</div>}
         </form>
-        <details className="review-more"><summary>{t('Další údaje dokladu')}</summary><dl className="review-facts">
-          <div><dt>{t('IČO dodavatele')}</dt><dd>{item.supplierIco || '—'}</dd></div><div><dt>{t('Jméno / název odběratele')}</dt><dd>{item.recipientName || '—'}</dd></div>
-        </dl></details>
       </div>
-      <div className="item-savebar review-savebar"><div><strong>{progress.decided.length} / {progress.active.length} {t('výdajů posouzeno')}</strong>
-        <small>{t(!decision ? 'Nejprve vyberte rozhodnutí.' : canFinish ? 'Dále: závěrečné schválení vyúčtování.' : anotherPending ? 'Po uložení otevřeme další výdaj.' : 'Žádost o vysvětlení zůstane otevřená.')}</small></div>
-        <button className="button primary" type="submit" form="review-decision" disabled={busy || !valid}>
-          {busy ? <Loader2 size={16} className="spin"/> : <ArrowRight size={16}/>}
-          {t(busy ? 'Ukládám…' : decision === 'accepted' ? 'Přijmout a pokračovat' : decision === 'rejected' ? 'Zamítnout a pokračovat' : decision === 'supplement' ? 'Uložit žádost a pokračovat' : 'Vyberte rozhodnutí')}
-        </button>
+      <div className="item-savebar review-savebar"><span>{progress.decided.length} / {progress.active.length} {t('výdajů posouzeno')}</span>
+        {decision&&<button className="button primary" type="submit" form="review-decision" disabled={busy||!reason.trim()}>{busy&&<Loader2 size={16} className="spin"/>}{t(decision==='rejected'?'Zamítnout a pokračovat':'Odeslat žádost')}</button>}
+        {!decision&&busy&&<Loader2 size={17} className="spin"/>}
       </div>
     </div>
   </div>;
