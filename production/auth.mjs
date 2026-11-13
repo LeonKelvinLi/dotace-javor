@@ -336,7 +336,7 @@ export function createAuth({
             : kind
           : "login",
         error: message,
-        email,
+        email: demo ? identifier : email,
         invite,
         reset: f.get("reset") || "",
         next: safePath(f.get("next")),

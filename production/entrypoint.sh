@@ -7,4 +7,4 @@ if [ "${APP_ENV:-}" != "prelaunch" ] && [ -z "${DATABASE_URL:-}" ]; then
   node production/bootstrap-local.mjs
   chown -R node:node "${DATA_DIR:-/var/data}/native"
 fi
-exec gosu node node production/server.mjs
+exec gosu node /usr/bin/tini -- node production/server.mjs

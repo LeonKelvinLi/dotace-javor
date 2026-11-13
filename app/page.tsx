@@ -546,8 +546,7 @@ function Workspace() {
             <a
               aria-label={t("Odhlásit")}
               title={t("Odhlásit")}
-              href="/logout" onClick={()=>{try{Object.keys(sessionStorage).filter(key=>key.startsWith("dotace-draft:")).forEach(key=>sessionStorage.removeItem(key));}catch{}}}
-              target="_top"
+              href="/logout" onClick={event=>{event.preventDefault();try{Object.keys(sessionStorage).filter(key=>key.startsWith("dotace-draft:")).forEach(key=>sessionStorage.removeItem(key));}catch{}window.location.assign("/logout");}}
             >
               <LogOut size={16} /><span className="account-link-label">{t("Odhlásit")}</span>
             </a>

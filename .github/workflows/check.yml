@@ -34,3 +34,4 @@ jobs:
           DATABASE_URL: postgresql://postgres:synthetic-ci-only@localhost:5432/postgres
       - run: npm audit --omit=dev --audit-level=high
       - run: docker build -t dotace-ci .
+      - run: node tests/container-smoke.mjs dotace-ci

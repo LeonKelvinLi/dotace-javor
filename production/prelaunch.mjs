@@ -6,7 +6,7 @@ import {loginPage} from './login-page.mjs';
 const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const copy = (cs,en) => `<span data-cs="${escape(cs)}" data-en="${escape(en)}">${escape(cs)}</span>`;
 const page = loginPage({copy,escape,next:'/',email:'',available:false});
-const assets = new Map(await Promise.all(['account.css','account.js'].map(async name => ['/'+name, await readFile(new URL('../public/'+name, import.meta.url))])));
+const assets = new Map(await Promise.all(['account.css','account.js'].map(async name => ['/'+name, await readFile(new URL('../dist/client/'+name, import.meta.url))])));
 const server = http.createServer((req,res) => {
   res.setHeader('Cache-Control','no-store');
   res.setHeader('X-Content-Type-Options','nosniff');
