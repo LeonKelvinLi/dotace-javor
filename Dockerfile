@@ -17,5 +17,4 @@ COPY --from=build --chown=node:node /app/package.json ./package.json
 RUN mkdir -p /var/data && chown node:node /var/data
 ENV NODE_ENV=production DATA_DIR=/var/data PORT=10000
 EXPOSE 10000
-ENTRYPOINT ["/usr/bin/tini","--"]
-CMD ["sh","production/entrypoint.sh"]
+ENTRYPOINT ["sh","production/entrypoint.sh"]
